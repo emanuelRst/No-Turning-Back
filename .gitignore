@@ -1,0 +1,13 @@
+# Binarios y objetos
+bin/
+obj/
+bin-int/
+
+# Visual Studio
+.vs/
+*.sln
+*.vcxproj
+*.vcxproj.user
+
+# Linux
+*.Makefile

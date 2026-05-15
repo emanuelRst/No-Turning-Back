@@ -1,0 +1,5 @@
+# Forzar a que los archivos de texto siempre usen LF (Linux) al guardarse en el repo
+* text=auto
+*.cpp text eol=lf
+*.h text eol=lf
+*.glsl text eol=lf
