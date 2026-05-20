@@ -11,3 +11,6 @@ bin-int/
 
 # Linux
 *.Makefile
+
+# Carpeta Build
+build/
