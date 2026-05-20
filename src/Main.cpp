@@ -126,8 +126,8 @@ int main() {
         if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetWindowShouldClose(window, true);
 
-        // Renderizado: Fondo Negro
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        // Renderizado: Fondo Negro <- W: Edit a Fondo Azul oscuro
+        glClearColor(0.05f, 0.05f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         // Dibujar el cuadrado blanco
