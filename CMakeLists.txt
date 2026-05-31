@@ -13,7 +13,8 @@ find_package(OpenGL REQUIRED)
 # Crear el ejecutable del Runner
 add_executable(EndlessRunner 
     src/Player.cpp 
-    src/RunnerMain.cpp 
+    src/Game.cpp 
+    src/main.cpp 
     vendor/glad/glad.c
 )
 

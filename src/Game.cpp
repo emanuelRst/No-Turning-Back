@@ -2,6 +2,9 @@
 #include <iostream>
 #include <glm/glm.hpp>
 
+// Inicialización de la instancia estática
+Game* Game::instance = nullptr;
+
 // Shader simple para mover el jugador
 const char* vertexShaderSource = R"(
 #version 330 core
@@ -20,7 +23,9 @@ void main() {
 }
 )";
 
-Game::Game(int w, int h) : width(w), height(h), window(nullptr), shaderProgram(0), VAO(0) {}
+Game::Game(int w, int h) : width(w), height(h), window(nullptr), shaderProgram(0), VAO(0) {
+    instance = this;
+}
 
 Game::~Game() {
     glfwTerminate();
@@ -36,8 +41,11 @@ bool Game::Init() {
     if (!window) return false;
     glfwMakeContextCurrent(window);
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+    
+    // Configurar callback
+    glfwSetKeyCallback(window, KeyCallback);
 
-    // Compilar Shaders (omitiendo chequeo de errores por brevedad en prototipo)
+    // Compilar Shaders
     unsigned int vShader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vShader, 1, &vertexShaderSource, NULL);
     glCompileShader(vShader);
@@ -67,6 +75,15 @@ bool Game::Init() {
     return true;
 }
 
+void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    if (instance && action == GLFW_PRESS) {
+        if (key == GLFW_KEY_A || key == GLFW_KEY_LEFT) instance->player.MoveLeft();
+        if (key == GLFW_KEY_D || key == GLFW_KEY_RIGHT) instance->player.MoveRight();
+        if (key == GLFW_KEY_SPACE || key == GLFW_KEY_W) instance->player.Jump();
+        if (key == GLFW_KEY_ESCAPE) glfwSetWindowShouldClose(window, true);
+    }
+}
+
 void Game::Run() {
     float lastTime = glfwGetTime();
     while (!glfwWindowShouldClose(window)) {
@@ -74,19 +91,12 @@ void Game::Run() {
         float deltaTime = currentTime - lastTime;
         lastTime = currentTime;
 
-        ProcessInput(deltaTime);
         Update(deltaTime);
         Render();
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-}
-
-void Game::ProcessInput(float deltaTime) {
-    if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) glfwSetWindowShouldClose(window, true);
-    if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) player.MoveLeft();
-    // ... implementar resto de inputs aquí
 }
 
 void Game::Update(float deltaTime) {
