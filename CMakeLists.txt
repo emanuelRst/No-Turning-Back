@@ -17,20 +17,29 @@ file(GLOB SOURCES
     "vendor/glad/glad.c"
 )
 
-# Crear el ejecutable
+# Crear el ejecutable original
 add_executable(${PROJECT_NAME} ${SOURCES})
+
+# Crear el ejecutable del Runner
+add_executable(EndlessRunner src/Player.cpp src/RunnerMain.cpp vendor/glad/glad.c)
 
 # Incluir las carpetas de cabeceras para que el compilador las encuentre
 target_include_directories(${PROJECT_NAME} PRIVATE src vendor .)
+target_include_directories(EndlessRunner PRIVATE src vendor .)
 
 # Vincular las librerías al ejecutable
-target_link_libraries(${PROJECT_NAME} PRIVATE 
+target_link_libraries(EndlessRunner PRIVATE 
     glfw 
     glm::glm 
     ${OPENGL_LIBRARIES}
 )
 
+target_link_libraries(EndlessRunner PRIVATE 
+    glm::glm
+)
+
 # Copiar o configurar que reconozca Linux vs Windows para hilos si es necesario
 if(LINUX)
     target_link_libraries(${PROJECT_NAME} PRIVATE pthread dl)
+    target_link_libraries(EndlessRunner PRIVATE pthread)
 endif()

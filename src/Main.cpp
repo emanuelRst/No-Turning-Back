@@ -38,7 +38,7 @@ const char* fragmentShaderSource = "#version 330 core\n"
 
 int main() {
 
-    std::cout << "--> [COMPATIBILIDAD]: Entorno Windows VS Ok." << std::endl;
+    std::cout << "--> [COMPATIBILIDAD]: Entorno Windows VS Entorno Linux." << std::endl;
 
     // Inicializar GLFW
     if (!glfwInit()) {
