@@ -19,8 +19,10 @@ public:
 
     // Obtener posición para renderizado
     glm::vec3 GetPosition() const { return position; }
+    bool IsJumping() const { return isJumping; }
 
 private:
+
     glm::vec3 position;
     float targetX;       // Carril objetivo (-2.0, 0.0, 2.0)
     int currentLane;     // 0: Izq, 1: Centro, 2: Der

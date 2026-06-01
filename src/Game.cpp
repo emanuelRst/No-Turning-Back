@@ -1,25 +1,64 @@
 #include "Game.h"
 #include <iostream>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 // Inicialización de la instancia estática
 Game* Game::instance = nullptr;
 
-// Shader simple para mover el jugador
+// Shader para Phong
 const char* vertexShaderSource = R"(
 #version 330 core
 layout (location = 0) in vec3 aPos;
-uniform vec3 u_offset;
+layout (location = 1) in vec3 aNormal;
+
+out vec3 FragPos;
+out vec3 Normal;
+
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+
 void main() {
-    gl_Position = vec4(aPos + u_offset, 1.0);
+    FragPos = vec3(model * vec4(aPos, 1.0));
+    Normal = mat3(transpose(inverse(model))) * aNormal;
+    gl_Position = projection * view * vec4(FragPos, 1.0);
 }
 )";
 
 const char* fragmentShaderSource = R"(
 #version 330 core
 out vec4 FragColor;
+
+in vec3 FragPos;
+in vec3 Normal;
+
+uniform vec3 lightPos;
+uniform vec3 viewPos;
+uniform vec3 lightColor;
+uniform vec3 objectColor;
+
 void main() {
-    FragColor = vec4(0.2f, 0.6f, 1.0f, 1.0f);
+    // Ambient
+    float ambientStrength = 0.1;
+    vec3 ambient = ambientStrength * lightColor;
+
+    // Diffuse
+    vec3 norm = normalize(Normal);
+    vec3 lightDir = normalize(lightPos - FragPos);
+    float diff = max(dot(norm, lightDir), 0.0);
+    vec3 diffuse = diff * lightColor;
+
+    // Specular
+    float specularStrength = 0.5;
+    vec3 viewDir = normalize(viewPos - FragPos);
+    vec3 reflectDir = reflect(-lightDir, norm);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
+    vec3 specular = specularStrength * spec * lightColor;
+
+    vec3 result = (ambient + diffuse + specular) * objectColor;
+    FragColor = vec4(result, 1.0);
 }
 )";
 
@@ -45,6 +84,15 @@ bool Game::Init() {
     // Configurar callback
     glfwSetKeyCallback(window, KeyCallback);
 
+    // Pantalla completa y ocultar cursor
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+    glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+    // Habilitar el test de profundidad
+    glEnable(GL_DEPTH_TEST);
+
     // Compilar Shaders
     unsigned int vShader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vShader, 1, &vertexShaderSource, NULL);
@@ -58,8 +106,41 @@ bool Game::Init() {
     glLinkProgram(shaderProgram);
 
     // VAO del Jugador
-    float vertices[] = { -0.1f, -0.1f, 0.0f,  0.1f, -0.1f, 0.0f,  0.1f, 0.1f, 0.0f, -0.1f, 0.1f, 0.0f };
-    unsigned int indices[] = { 0, 1, 2, 2, 3, 0 };
+    float vertices[] = {
+        // positions          // normals
+        -0.1f, -0.1f,  0.1f,  0.0f,  0.0f,  1.0f,
+         0.1f, -0.1f,  0.1f,  0.0f,  0.0f,  1.0f,
+         0.1f,  0.1f,  0.1f,  0.0f,  0.0f,  1.0f,
+        -0.1f,  0.1f,  0.1f,  0.0f,  0.0f,  1.0f,
+        -0.1f, -0.1f, -0.1f,  0.0f,  0.0f, -1.0f,
+        -0.1f,  0.1f, -0.1f,  0.0f,  0.0f, -1.0f,
+         0.1f,  0.1f, -0.1f,  0.0f,  0.0f, -1.0f,
+         0.1f, -0.1f, -0.1f,  0.0f,  0.0f, -1.0f,
+        -0.1f,  0.1f, -0.1f,  0.0f,  1.0f,  0.0f,
+        -0.1f,  0.1f,  0.1f,  0.0f,  1.0f,  0.0f,
+         0.1f,  0.1f,  0.1f,  0.0f,  1.0f,  0.0f,
+         0.1f,  0.1f, -0.1f,  0.0f,  1.0f,  0.0f,
+        -0.1f, -0.1f, -0.1f,  0.0f, -1.0f,  0.0f,
+         0.1f, -0.1f, -0.1f,  0.0f, -1.0f,  0.0f,
+         0.1f, -0.1f,  0.1f,  0.0f, -1.0f,  0.0f,
+        -0.1f, -0.1f,  0.1f,  0.0f, -1.0f,  0.0f,
+        -0.1f, -0.1f, -0.1f, -1.0f,  0.0f,  0.0f,
+        -0.1f, -0.1f,  0.1f, -1.0f,  0.0f,  0.0f,
+        -0.1f,  0.1f,  0.1f, -1.0f,  0.0f,  0.0f,
+        -0.1f,  0.1f, -0.1f, -1.0f,  0.0f,  0.0f,
+         0.1f, -0.1f, -0.1f,  1.0f,  0.0f,  0.0f,
+         0.1f,  0.1f, -0.1f,  1.0f,  0.0f,  0.0f,
+         0.1f,  0.1f,  0.1f,  1.0f,  0.0f,  0.0f,
+         0.1f, -0.1f,  0.1f,  1.0f,  0.0f,  0.0f
+    };
+    unsigned int indices[] = {
+        0, 1, 2, 2, 3, 0,
+        4, 5, 6, 6, 7, 4,
+        8, 9, 10, 10, 11, 8,
+        12, 13, 14, 14, 15, 12,
+        16, 17, 18, 18, 19, 16,
+        20, 21, 22, 22, 23, 20
+    };
     unsigned int VBO, EBO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
@@ -69,8 +150,13 @@ bool Game::Init() {
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    
+    // Position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+    // Normal attribute
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
 
     return true;
 }
@@ -104,10 +190,37 @@ void Game::Update(float deltaTime) {
 }
 
 void Game::Render() {
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glUseProgram(shaderProgram);
+    
     glm::vec3 pos = player.GetPosition();
-    glUniform3f(glGetUniformLocation(shaderProgram, "u_offset"), pos.x * 0.25f, (pos.y * 0.5f) - 0.7f, 0.0f);
+    
+    // Cámara inclinada hacia abajo
+    glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 1.0f, 2.5f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    
+    // Ajustar aspecto para pantalla completa
+    int fbWidth, fbHeight;
+    glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+    float aspect = (float)fbWidth / (float)fbHeight;
+    glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
+    
+    // Escalar si está saltando
+    float scaleFactor = player.IsJumping() ? 1.2f : 1.0f;
+    
+    glm::mat4 model = glm::mat4(1.0f);
+    // Centrado en X (pos.x * 0.25f), y movido hacia abajo en Y
+    model = glm::translate(model, glm::vec3(pos.x * 0.25f, -0.5f + (pos.y * 0.2f), 0.0f));
+    model = glm::scale(model, glm::vec3(scaleFactor));
+    
+    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+    
+    glUniform3f(glGetUniformLocation(shaderProgram, "lightPos"), 1.0f, 1.0f, 2.0f);
+    glUniform3f(glGetUniformLocation(shaderProgram, "viewPos"), 0.0f, 1.0f, 2.5f); // Actualizado con la posición de la cámara
+    glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"), 1.0f, 1.0f, 1.0f);
+    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.2f, 0.6f, 1.0f);
+    
     glBindVertexArray(VAO);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
 }
