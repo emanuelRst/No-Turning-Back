@@ -83,6 +83,7 @@ bool Game::Init() {
     
     // Configurar callback
     glfwSetKeyCallback(window, KeyCallback);
+    glfwSetFramebufferSizeCallback(window, FramebufferSizeCallback);
 
     // Pantalla completa y ocultar cursor
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
@@ -168,6 +169,10 @@ void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, in
         if (key == GLFW_KEY_SPACE || key == GLFW_KEY_W) instance->player.Jump();
         if (key == GLFW_KEY_ESCAPE) glfwSetWindowShouldClose(window, true);
     }
+}
+
+void Game::FramebufferSizeCallback(GLFWwindow* window, int width, int height) {
+    glViewport(0, 0, width, height);
 }
 
 void Game::Run() {

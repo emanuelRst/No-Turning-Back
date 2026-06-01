@@ -15,6 +15,7 @@ public:
 
     // Callback estático para GLFW
     static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+    static void FramebufferSizeCallback(GLFWwindow* window, int width, int height);
 
 private:
     void Update(float deltaTime);
