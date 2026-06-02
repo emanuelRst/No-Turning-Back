@@ -1,45 +1,55 @@
 #ifndef PLAYER_H
 #define PLAYER_H
 
-#include <glm/glm.hpp>
+#include "GameObject.h"
+#include <vector>
 
-class Player {
+// Player es otro GameObject: su modelo visual puede cambiar, pero la fisica
+// solo necesita su posicion, velocidad e hitbox.
+class Player : public GameObject {
 public:
     Player();
 
-    // Actualiza la posición, física y movimiento del jugador
-    void Update(float deltaTime);
+    // Update sin objetos mantiene compatibilidad con pruebas simples.
+    void Update(float deltaTime) override;
+    // collisionObjects son objetos genericos con hitbox, no necesariamente trenes.
+    void Update(float deltaTime, const std::vector<GameObject*>& collisionObjects);
 
-    // Métodos para cambiar de carril
+    // Comandos de entrada por carril.
     void MoveLeft();
     void MoveRight();
-
-    // Método para saltar
     void Jump();
+    void Reset();
 
-    // Obtener posición para renderizado
-    glm::vec3 GetPosition() const { return position; }
+    // Tamano actual de la hitbox. El renderer temporal lo usa para escalar el cubo.
+    glm::vec3 GetCollisionSize() const { return GetHitboxSize(); }
     bool IsJumping() const { return isJumping; }
+    bool IsOnObject() const { return isOnObject; }
+    bool HasCrashed() const { return hasCrashed; }
 
 private:
+    // targetX permite interpolar suavemente al cambiar de carril.
+    float targetX;
+    int currentLane;
 
-    glm::vec3 position;
-    float targetX;       // Carril objetivo (-2.0, 0.0, 2.0)
-    int currentLane;     // 0: Izq, 1: Centro, 2: Der
-
+    // Estado fisico vertical. X/Z se controlan por carriles y por el avance de objetos.
     glm::vec3 velocity;
     bool isGrounded;
     bool isJumping;
+    bool isOnObject;
+    bool hasCrashed;
 
-    // Constantes de física
     const float jumpForce = 8.0f;
     const float gravity = 20.0f;
     const float laneSpeed = 15.0f;
 
-    // Helper para actualizar X con Lerp
+    // Helpers internos separados para mantener Update legible.
     void UpdateLaneMovement(float deltaTime);
-    // Helper para actualizar Y con Gravedad
-    void UpdatePhysics(float deltaTime);
+    void UpdatePhysics(float deltaTime, const std::vector<GameObject*>& collisionObjects);
+    // Soporte usa solape X/Z y el techo mas alto bajo la hitbox del player.
+    const GameObject* FindObjectUnderPlayer(const std::vector<GameObject*>& collisionObjects) const;
+    // Bloqueo usa interseccion AABB completa para detectar choque contra el cuerpo.
+    const GameObject* FindBlockingObject(const std::vector<GameObject*>& collisionObjects) const;
 };
 
 #endif

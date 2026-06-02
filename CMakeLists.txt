@@ -12,6 +12,8 @@ find_package(OpenGL REQUIRED)
 
 # Crear el ejecutable del Runner
 add_executable(EndlessRunner 
+    src/GameObject.cpp
+    src/Train.cpp
     src/Player.cpp 
     src/Game.cpp 
     src/main.cpp 

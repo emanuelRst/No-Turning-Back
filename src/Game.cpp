@@ -1,4 +1,5 @@
 #include "Game.h"
+#include <algorithm>
 #include <iostream>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -62,8 +63,24 @@ void main() {
 }
 )";
 
-Game::Game(int w, int h) : width(w), height(h), window(nullptr), shaderProgram(0), VAO(0) {
+namespace {
+constexpr float kWorldScale = 0.25f;
+constexpr float kHeightScale = 0.2f;
+constexpr float kRenderGroundY = -0.5f;
+constexpr float kTrainWidth = 1.55f;
+constexpr float kTrainHeight = 1.15f;
+constexpr float kTrainDepth = 5.0f;
+constexpr float kTrainSpeed = 20.0f;
+constexpr float kTrainSpawnDistance = 50.0f;
+constexpr float kTrainSpacing = 16.0f;
+constexpr float kTrainDespawnDistance = 8.0f;
+}
+
+Game::Game(int w, int h)
+    : window(nullptr), width(w), height(h), shaderProgram(0), VAO(0),
+      trains(), nextTrainLane(0) {
     instance = this;
+    ResetRun();
 }
 
 Game::~Game() {
@@ -164,10 +181,15 @@ bool Game::Init() {
 
 void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (instance && action == GLFW_PRESS) {
+        if (key == GLFW_KEY_ESCAPE) glfwSetWindowShouldClose(window, true);
+        if (key == GLFW_KEY_R && instance->player.HasCrashed()) {
+            instance->ResetRun();
+            return;
+        }
+
         if (key == GLFW_KEY_A || key == GLFW_KEY_LEFT) instance->player.MoveLeft();
         if (key == GLFW_KEY_D || key == GLFW_KEY_RIGHT) instance->player.MoveRight();
         if (key == GLFW_KEY_SPACE || key == GLFW_KEY_W) instance->player.Jump();
-        if (key == GLFW_KEY_ESCAPE) glfwSetWindowShouldClose(window, true);
     }
 }
 
@@ -191,7 +213,59 @@ void Game::Run() {
 }
 
 void Game::Update(float deltaTime) {
-    player.Update(deltaTime);
+    if (player.HasCrashed()) {
+        return;
+    }
+
+    UpdateTrains(deltaTime);
+
+    std::vector<GameObject*> collisionObjects;
+    collisionObjects.reserve(trains.size());
+    for (Train& train : trains) {
+        collisionObjects.push_back(&train);
+    }
+
+    player.Update(deltaTime, collisionObjects);
+}
+
+void Game::UpdateTrains(float deltaTime) {
+    const float playerZ = player.GetPosition().z;
+
+    for (Train& train : trains) {
+        train.Update(deltaTime);
+
+        if (train.BackEdgeZ() > playerZ + kTrainDespawnDistance) {
+            ResetTrain(train);
+        }
+    }
+}
+
+void Game::ResetTrain(Train& train) {
+    float farthestZ = player.GetPosition().z - kTrainSpawnDistance;
+    for (const Train& other : trains) {
+        if (&other == &train) {
+            continue;
+        }
+
+        farthestZ = std::min(farthestZ, other.GetPosition().z);
+    }
+
+    train.Reset(nextTrainLane, farthestZ - kTrainSpacing,
+                glm::vec3(kTrainWidth, kTrainHeight, kTrainDepth), kTrainSpeed);
+    nextTrainLane = (nextTrainLane + 2) % 3;
+}
+
+void Game::ResetRun() {
+    player.Reset();
+    nextTrainLane = 0;
+
+    const glm::vec3 trainSize(kTrainWidth, kTrainHeight, kTrainDepth);
+    const float playerZ = player.GetPosition().z;
+    trains = {
+        Train(1, playerZ - kTrainSpawnDistance, trainSize, kTrainSpeed),
+        Train(0, playerZ - kTrainSpawnDistance - kTrainSpacing, trainSize, kTrainSpeed),
+        Train(2, playerZ - kTrainSpawnDistance - kTrainSpacing * 2.0f, trainSize, kTrainSpeed)
+    };
 }
 
 void Game::Render() {
@@ -211,11 +285,14 @@ void Game::Render() {
     
     // Escalar si está saltando
     float scaleFactor = player.IsJumping() ? 1.2f : 1.0f;
+    glm::vec3 playerSize = player.GetCollisionSize();
     
     glm::mat4 model = glm::mat4(1.0f);
     // Centrado en X (pos.x * 0.25f), y movido hacia abajo en Y
-    model = glm::translate(model, glm::vec3(pos.x * 0.25f, -0.5f + (pos.y * 0.2f), 0.0f));
-    model = glm::scale(model, glm::vec3(scaleFactor));
+    model = glm::translate(model, glm::vec3(pos.x * kWorldScale, kRenderGroundY + (pos.y * kHeightScale), 0.0f));
+    model = glm::scale(model, glm::vec3(playerSize.x * 1.25f,
+                                        playerSize.y,
+                                        playerSize.z * 1.25f) * scaleFactor);
     
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
@@ -224,8 +301,31 @@ void Game::Render() {
     glUniform3f(glGetUniformLocation(shaderProgram, "lightPos"), 1.0f, 1.0f, 2.0f);
     glUniform3f(glGetUniformLocation(shaderProgram, "viewPos"), 0.0f, 1.0f, 2.5f); // Actualizado con la posición de la cámara
     glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"), 1.0f, 1.0f, 1.0f);
-    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.2f, 0.6f, 1.0f);
+    if (player.HasCrashed()) {
+        glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.9f, 0.15f, 0.1f);
+    } else {
+        glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.2f, 0.6f, 1.0f);
+    }
     
+    // Dibuja el jugador con la posicion calculada por Player.
     glBindVertexArray(VAO);
     glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+
+    // Dibuja los trenes usando el mismo cubo base del jugador.
+    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.85f, 0.2f, 0.12f);
+    for (const Train& train : trains) {
+        const glm::vec3 objectPosition = train.GetPosition();
+        const glm::vec3 objectSize = train.GetHitboxSize();
+        glm::mat4 objectModel = glm::mat4(1.0f);
+        // Se aplica la misma escala visual de Y que usa el jugador para mantener coherencia.
+        objectModel = glm::translate(objectModel, glm::vec3(objectPosition.x * kWorldScale,
+                                                           kRenderGroundY + objectPosition.y * kHeightScale,
+                                                           (objectPosition.z - pos.z) * kWorldScale));
+        // Ajusta el cubo unitario al tamano logico del objeto pisable.
+        objectModel = glm::scale(objectModel, glm::vec3(objectSize.x * 1.25f,
+                                                        objectSize.y,
+                                                        objectSize.z * 1.25f));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(objectModel));
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+    }
 }

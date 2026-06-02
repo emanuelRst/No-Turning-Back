@@ -3,7 +3,9 @@
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <vector>
 #include "Player.h"
+#include "Train.h"
 
 class Game {
 public:
@@ -20,6 +22,9 @@ public:
 private:
     void Update(float deltaTime);
     void Render();
+    void UpdateTrains(float deltaTime);
+    void ResetTrain(Train& train);
+    void ResetRun();
 
     GLFWwindow* window;
     int width, height;
@@ -27,6 +32,8 @@ private:
     // Shader program y buffers
     unsigned int shaderProgram;
     unsigned int VAO;
+    std::vector<Train> trains;
+    int nextTrainLane;
 
     // Instancia estática para acceder desde el callback
     static Game* instance;
