@@ -6,6 +6,7 @@
 #include <vector>
 #include "Player.h"
 #include "Train.h"
+#include "Model.h"
 
 class Game {
 public:
@@ -32,6 +33,7 @@ private:
     // Shader program y buffers
     unsigned int shaderProgram;
     unsigned int VAO;
+    Model* playerModel;
     std::vector<Train> trains;
     int nextTrainLane;
 

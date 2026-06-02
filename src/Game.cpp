@@ -78,12 +78,13 @@ constexpr float kTrainDespawnDistance = 8.0f;
 
 Game::Game(int w, int h)
     : window(nullptr), width(w), height(h), shaderProgram(0), VAO(0),
-      trains(), nextTrainLane(0) {
+      playerModel(nullptr), trains(), nextTrainLane(0) {
     instance = this;
     ResetRun();
 }
 
 Game::~Game() {
+    delete playerModel;
     glfwTerminate();
 }
 
@@ -98,6 +99,9 @@ bool Game::Init() {
     glfwMakeContextCurrent(window);
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
     
+    // Cargar modelo del jugador
+    playerModel = new Model("assets/models/player/scene.gltf");
+
     // Configurar callback
     glfwSetKeyCallback(window, KeyCallback);
     glfwSetFramebufferSizeCallback(window, FramebufferSizeCallback);
@@ -290,9 +294,9 @@ void Game::Render() {
     glm::mat4 model = glm::mat4(1.0f);
     // Centrado en X (pos.x * 0.25f), y movido hacia abajo en Y
     model = glm::translate(model, glm::vec3(pos.x * kWorldScale, kRenderGroundY + (pos.y * kHeightScale), 0.0f));
-    model = glm::scale(model, glm::vec3(playerSize.x * 1.25f,
-                                        playerSize.y,
-                                        playerSize.z * 1.25f) * scaleFactor);
+    model = glm::scale(model, glm::vec3(playerSize.x * 0.8f,
+                                        playerSize.y * 0.8f,
+                                        playerSize.z * 0.8f) * scaleFactor);
     
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
@@ -308,11 +312,18 @@ void Game::Render() {
     }
     
     // Dibuja el jugador con la posicion calculada por Player.
-    glBindVertexArray(VAO);
-    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+    if (playerModel) {
+        glm::mat4 visualModel = glm::scale(model, glm::vec3(0.6f));
+        playerModel->Draw(shaderProgram, visualModel);
+    } else {
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+        glBindVertexArray(VAO);
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+    }
 
     // Dibuja los trenes usando el mismo cubo base del jugador.
     glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.85f, 0.2f, 0.12f);
+    glBindVertexArray(VAO);
     for (const Train& train : trains) {
         const glm::vec3 objectPosition = train.GetPosition();
         const glm::vec3 objectSize = train.GetHitboxSize();

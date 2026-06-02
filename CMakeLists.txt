@@ -8,6 +8,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Buscar dependencias mediante vcpkg
 find_package(glfw3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
+find_package(assimp CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 find_package(OpenGL REQUIRED)
 
 # Crear el ejecutable del Runner
@@ -17,7 +19,15 @@ add_executable(EndlessRunner
     src/Player.cpp 
     src/Game.cpp 
     src/main.cpp 
+    src/Model.cpp
     vendor/glad/glad.c
+)
+
+# Copiar activos a la carpeta de build
+add_custom_command(TARGET EndlessRunner POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/assets
+    $<TARGET_FILE_DIR:EndlessRunner>/assets
 )
 
 # Incluir las carpetas de cabeceras para que el compilador las encuentre
@@ -31,6 +41,8 @@ target_include_directories(EndlessRunner PRIVATE
 target_link_libraries(EndlessRunner PRIVATE 
     glfw 
     glm::glm 
+    assimp::assimp
+    nlohmann_json::nlohmann_json
     ${OPENGL_LIBRARIES}
 )
 
