@@ -8,14 +8,16 @@
 // Inicialización de la instancia estática
 Game* Game::instance = nullptr;
 
-// Shader para Phong
+// Shader para Phong con soporte de texturas
 const char* vertexShaderSource = R"(
 #version 330 core
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec3 aNormal;
+layout (location = 2) in vec2 aTexCoords;
 
 out vec3 FragPos;
 out vec3 Normal;
+out vec2 TexCoords;
 
 uniform mat4 model;
 uniform mat4 view;
@@ -24,6 +26,7 @@ uniform mat4 projection;
 void main() {
     FragPos = vec3(model * vec4(aPos, 1.0));
     Normal = mat3(transpose(inverse(model))) * aNormal;
+    TexCoords = aTexCoords;
     gl_Position = projection * view * vec4(FragPos, 1.0);
 }
 )";
@@ -34,11 +37,14 @@ out vec4 FragColor;
 
 in vec3 FragPos;
 in vec3 Normal;
+in vec2 TexCoords;
 
 uniform vec3 lightPos;
 uniform vec3 viewPos;
 uniform vec3 lightColor;
 uniform vec3 objectColor;
+uniform sampler2D texture_diffuse1;
+uniform bool useTexture;
 
 void main() {
     // Ambient
@@ -58,10 +64,13 @@ void main() {
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
     vec3 specular = specularStrength * spec * lightColor;
 
-    vec3 result = (ambient + diffuse + specular) * objectColor;
-    FragColor = vec4(result, 1.0);
+    vec4 texColor = useTexture ? texture(texture_diffuse1, TexCoords) : vec4(1.0);
+    vec3 result = (ambient + diffuse + specular) * objectColor * texColor.rgb;
+    FragColor = vec4(result, texColor.a);
 }
 )";
+
+
 
 namespace {
 constexpr float kWorldScale = 0.25f;
@@ -337,7 +346,7 @@ void Game::Render() {
     if (player.HasCrashed()) {
         glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.9f, 0.15f, 0.1f);
     } else {
-        glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.2f, 0.6f, 1.0f);
+        glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 1.0f, 1.0f);
     }
     
     // Dibuja el jugador con la posicion calculada por Player.
@@ -347,12 +356,14 @@ void Game::Render() {
         playerModel->Draw(shaderProgram, visualModel);
     } else {
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+        glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }
 
     // Dibuja los trenes usando el mismo cubo base del jugador.
     glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.85f, 0.2f, 0.12f);
+    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0); // Disable texture
     glBindVertexArray(VAO);
     for (const Train& train : trains) {
         const glm::vec3 objectPosition = train.GetPosition();
@@ -372,6 +383,7 @@ void Game::Render() {
 
     // Dibuja el suelo
     glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.3f, 0.3f, 0.3f);
+    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0); // Disable texture
     for (const auto& segment : groundSegments) {
         const glm::vec3 objectPosition = segment.GetPosition();
         const glm::vec3 objectSize = segment.GetHitboxSize();
