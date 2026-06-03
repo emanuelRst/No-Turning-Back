@@ -3,10 +3,18 @@
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <vector>
+#include "GameObject.h"
 #include "Player.h"
 #include "Train.h"
 #include "Model.h"
+
+// Clase sencilla para los segmentos del suelo
+class GroundSegment : public GameObject {
+public:
+    GroundSegment(const glm::vec3& position, const glm::vec3& size) 
+        : GameObject(position, size) {}
+    void Update(float /*deltaTime*/) override {} // No se mueven solos
+};
 
 class Game {
 public:
@@ -24,6 +32,7 @@ private:
     void Update(float deltaTime);
     void Render();
     void UpdateTrains(float deltaTime);
+    void UpdateGround(float deltaTime); // Nuevo método
     void ResetTrain(Train& train);
     void ResetRun();
 
@@ -35,6 +44,7 @@ private:
     unsigned int VAO;
     Model* playerModel;
     std::vector<Train> trains;
+    std::vector<GroundSegment> groundSegments; // Nuevo contenedor
     int nextTrainLane;
 
     // Instancia estática para acceder desde el callback

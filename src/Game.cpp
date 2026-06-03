@@ -74,6 +74,9 @@ constexpr float kTrainSpeed = 20.0f;
 constexpr float kTrainSpawnDistance = 50.0f;
 constexpr float kTrainSpacing = 16.0f;
 constexpr float kTrainDespawnDistance = 8.0f;
+// Nuevas constantes para el suelo
+constexpr float kGroundSegmentLength = 20.0f;
+constexpr int kNumGroundSegments = 5;
 }
 
 Game::Game(int w, int h)
@@ -222,6 +225,7 @@ void Game::Update(float deltaTime) {
     }
 
     UpdateTrains(deltaTime);
+    UpdateGround(deltaTime); // Nuevo
 
     std::vector<GameObject*> collisionObjects;
     collisionObjects.reserve(trains.size());
@@ -240,6 +244,24 @@ void Game::UpdateTrains(float deltaTime) {
 
         if (train.BackEdgeZ() > playerZ + kTrainDespawnDistance) {
             ResetTrain(train);
+        }
+    }
+}
+
+void Game::UpdateGround(float deltaTime) {
+    const float playerZ = player.GetPosition().z;
+    
+    // Buscar el segmento mas lejano
+    float farthestZ = 0.0f;
+    for (const auto& segment : groundSegments) {
+        farthestZ = std::min(farthestZ, segment.GetPosition().z);
+    }
+
+    // Reciclar segmentos que quedaron detras
+    for (auto& segment : groundSegments) {
+        if (segment.GetPosition().z > playerZ + kTrainDespawnDistance) {
+            segment.SetPosition(glm::vec3(0.0f, 0.0f, farthestZ - kGroundSegmentLength));
+            farthestZ = segment.GetPosition().z;
         }
     }
 }
@@ -270,6 +292,13 @@ void Game::ResetRun() {
         Train(0, playerZ - kTrainSpawnDistance - kTrainSpacing, trainSize, kTrainSpeed),
         Train(2, playerZ - kTrainSpawnDistance - kTrainSpacing * 2.0f, trainSize, kTrainSpeed)
     };
+
+    // Inicializar suelo
+    groundSegments.clear();
+    for (int i = 0; i < kNumGroundSegments; ++i) {
+        float zPos = playerZ - (i * kGroundSegmentLength);
+        groundSegments.emplace_back(glm::vec3(0.0f, 0.0f, zPos), glm::vec3(5.0f, 0.1f, kGroundSegmentLength));
+    }
 }
 
 void Game::Render() {
@@ -314,6 +343,7 @@ void Game::Render() {
     // Dibuja el jugador con la posicion calculada por Player.
     if (playerModel) {
         glm::mat4 visualModel = glm::scale(model, glm::vec3(0.6f));
+        visualModel = glm::rotate(visualModel, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         playerModel->Draw(shaderProgram, visualModel);
     } else {
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
@@ -334,6 +364,22 @@ void Game::Render() {
                                                            (objectPosition.z - pos.z) * kWorldScale));
         // Ajusta el cubo unitario al tamano logico del objeto pisable.
         objectModel = glm::scale(objectModel, glm::vec3(objectSize.x * 1.25f,
+                                                        objectSize.y,
+                                                        objectSize.z * 1.25f));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(objectModel));
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+    }
+
+    // Dibuja el suelo
+    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.3f, 0.3f, 0.3f);
+    for (const auto& segment : groundSegments) {
+        const glm::vec3 objectPosition = segment.GetPosition();
+        const glm::vec3 objectSize = segment.GetHitboxSize();
+        glm::mat4 objectModel = glm::mat4(1.0f);
+        objectModel = glm::translate(objectModel, glm::vec3(objectPosition.x * kWorldScale,
+                                                           kRenderGroundY - 0.1f, // Ligeramente debajo
+                                                           (objectPosition.z - pos.z) * kWorldScale));
+        objectModel = glm::scale(objectModel, glm::vec3(objectSize.x * 1.5f,
                                                         objectSize.y,
                                                         objectSize.z * 1.25f));
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(objectModel));
