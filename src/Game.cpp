@@ -1,4 +1,5 @@
 #include "Game.h"
+#include "Menu.h"
 #include <algorithm>
 #include <iostream>
 #include <glm/glm.hpp>
@@ -70,6 +71,25 @@ void main() {
 }
 )";
 
+const char* menuVertexShaderSource = R"(
+#version 330 core
+layout (location = 0) in vec3 aPos;
+uniform mat4 model;
+uniform mat4 projection;
+void main() {
+    gl_Position = projection * model * vec4(aPos, 1.0);
+}
+)";
+
+const char* menuFragmentShaderSource = R"(
+#version 330 core
+out vec4 FragColor;
+uniform vec3 objectColor;
+void main() {
+    FragColor = vec4(objectColor, 1.0);
+}
+)";
+
 
 
 namespace {
@@ -90,13 +110,25 @@ constexpr int kNumGroundSegments = 5;
 
 Game::Game(int w, int h)
     : window(nullptr), width(w), height(h), shaderProgram(0), VAO(0),
-      playerModel(nullptr), trains(), nextTrainLane(0) {
+      playerModel(nullptr), trains(), nextTrainLane(0), 
+      currentState(GameState::MENU), menu(new Menu()) {
     instance = this;
+    
+    // Configurar botones del menú (Tamaño 600x150)
+    menu->AddButton("Iniciar Juego", 660, 200, 600, 150, [this](){ 
+        this->currentState = GameState::PLAYING;
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    });
+    menu->AddButton("Cambiar Personajes", 660, 370, 600, 150, [](){ std::cout << "Personajes\n"; });
+    menu->AddButton("Opciones", 660, 540, 600, 150, [](){ std::cout << "Opciones\n"; });
+    menu->AddButton("Creditos", 660, 710, 600, 150, [](){ std::cout << "Creditos\n"; });
+    
     ResetRun();
 }
 
 Game::~Game() {
     delete playerModel;
+    delete menu;
     glfwTerminate();
 }
 
@@ -111,18 +143,23 @@ bool Game::Init() {
     glfwMakeContextCurrent(window);
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
     
+    // Inicializar menú
+    menu->Init("assets/fonts/stocky.ttf");
+
     // Cargar modelo del jugador
     playerModel = new Model("assets/models/player/scene.gltf");
 
     // Configurar callback
     glfwSetKeyCallback(window, KeyCallback);
     glfwSetFramebufferSizeCallback(window, FramebufferSizeCallback);
+    glfwSetCursorPosCallback(window, CursorPosCallback);
+    glfwSetMouseButtonCallback(window, MouseButtonCallback);
 
-    // Pantalla completa y ocultar cursor
+    // Pantalla completa y ocultar cursor (cambiado inicialmente para ver el menu)
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* mode = glfwGetVideoMode(monitor);
     glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Se gestionará según el estado
 
     // Habilitar el test de profundidad
     glEnable(GL_DEPTH_TEST);
@@ -138,6 +175,18 @@ bool Game::Init() {
     glAttachShader(shaderProgram, vShader);
     glAttachShader(shaderProgram, fShader);
     glLinkProgram(shaderProgram);
+
+    // Compilar Menu Shader
+    unsigned int vMenuShader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vMenuShader, 1, &menuVertexShaderSource, NULL);
+    glCompileShader(vMenuShader);
+    unsigned int fMenuShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fMenuShader, 1, &menuFragmentShaderSource, NULL);
+    glCompileShader(fMenuShader);
+    menuShaderProgram = glCreateProgram();
+    glAttachShader(menuShaderProgram, vMenuShader);
+    glAttachShader(menuShaderProgram, fMenuShader);
+    glLinkProgram(menuShaderProgram);
 
     // VAO del Jugador
     float vertices[] = {
@@ -197,15 +246,44 @@ bool Game::Init() {
 
 void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (instance && action == GLFW_PRESS) {
-        if (key == GLFW_KEY_ESCAPE) glfwSetWindowShouldClose(window, true);
-        if (key == GLFW_KEY_R && instance->player.HasCrashed()) {
-            instance->ResetRun();
-            return;
+        if (key == GLFW_KEY_ESCAPE) {
+            if (instance->currentState == GameState::PLAYING) {
+                instance->currentState = GameState::MENU;
+                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            } else {
+                glfwSetWindowShouldClose(window, true);
+            }
         }
+        
+        if (instance->currentState == GameState::PLAYING) {
+            if (key == GLFW_KEY_R && instance->player.HasCrashed()) {
+                instance->ResetRun();
+                return;
+            }
 
-        if (key == GLFW_KEY_A || key == GLFW_KEY_LEFT) instance->player.MoveLeft();
-        if (key == GLFW_KEY_D || key == GLFW_KEY_RIGHT) instance->player.MoveRight();
-        if (key == GLFW_KEY_SPACE || key == GLFW_KEY_W) instance->player.Jump();
+            if (key == GLFW_KEY_A || key == GLFW_KEY_LEFT) instance->player.MoveLeft();
+            if (key == GLFW_KEY_D || key == GLFW_KEY_RIGHT) instance->player.MoveRight();
+            if (key == GLFW_KEY_SPACE || key == GLFW_KEY_W) instance->player.Jump();
+        }
+    }
+}
+
+void Game::CursorPosCallback(GLFWwindow* window, double xpos, double ypos) {
+    if (instance && instance->currentState == GameState::MENU) {
+        int fbWidth, fbHeight;
+        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+        instance->menu->Update(xpos, ypos, fbWidth, fbHeight);
+    }
+}
+
+void Game::MouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
+    if (instance && instance->currentState == GameState::MENU && action == GLFW_PRESS) {
+        double xpos, ypos;
+        glfwGetCursorPos(window, &xpos, &ypos);
+        if (instance->menu->HandleClick(xpos, ypos)) {
+            // Si el clic fue en "Iniciar", cambiar estado
+            // (esto se conectará mejor cuando implementemos la función lambda real en el constructor)
+        }
     }
 }
 
@@ -229,6 +307,8 @@ void Game::Run() {
 }
 
 void Game::Update(float deltaTime) {
+    if (currentState == GameState::MENU) return;
+
     if (player.HasCrashed()) {
         return;
     }
@@ -312,6 +392,15 @@ void Game::ResetRun() {
 
 void Game::Render() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    
+    if (currentState == GameState::MENU) {
+        int fbWidth, fbHeight;
+        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+        menu->Render(menuShaderProgram, VAO, fbWidth, fbHeight);
+        glfwSwapBuffers(window);
+        return;
+    }
+
     glUseProgram(shaderProgram);
     
     glm::vec3 pos = player.GetPosition();

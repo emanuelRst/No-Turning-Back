@@ -20,6 +20,7 @@ add_executable(EndlessRunner
     src/Game.cpp 
     src/main.cpp 
     src/Model.cpp
+    src/Menu.cpp
     vendor/glad/glad.c
 )
 
