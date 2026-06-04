@@ -7,6 +7,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <limits>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
@@ -93,28 +94,41 @@ void Model::LoadModel(const std::string& path) {
 
     directory = std::filesystem::path(path).parent_path().string();
     modelAABB = ModelAABB{};
+    modelAABB.min = glm::vec3(std::numeric_limits<float>::max());
+    modelAABB.max = glm::vec3(std::numeric_limits<float>::lowest());
 
-    // Para el AABB del modelo, iteramos vértices en espacio del asset (sin aplicar matrices de nodos).
-    // Nota: esto asume que los vértices ya vienen coherentes en el asset.
-    for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
-        const aiMesh* mesh = scene->mMeshes[m];
+    // AABB real: recorrer la jerarquía aplicando mTransformation de cada nodo.
+    ComputeAABB(scene->mRootNode, glm::mat4(1.0f));
+
+    // Si la carga no produjo vértices (escena vacía), dejar un AABB unitario
+    // para que la hitbox resultante no sea degenerada.
+    if (modelAABB.min.x > modelAABB.max.x) {
+        modelAABB.min = glm::vec3(-0.5f);
+        modelAABB.max = glm::vec3(0.5f);
+    }
+
+    processNode(scene->mRootNode, scene);
+}
+
+void Model::ComputeAABB(aiNode* node, const glm::mat4& parentTransform) {
+    const glm::mat4 nodeTransform = parentTransform * aiMatrixToGlm(node->mTransformation);
+
+    for (unsigned int i = 0; i < node->mNumMeshes; ++i) {
+        const aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
         if (!mesh || mesh->mNumVertices == 0) continue;
 
         for (unsigned int v = 0; v < mesh->mNumVertices; ++v) {
             const aiVector3D p = mesh->mVertices[v];
-            glm::vec3 pos(p.x, p.y, p.z);
-
-            if (m == 0 && v == 0) {
-                modelAABB.min = pos;
-                modelAABB.max = pos;
-            } else {
-                modelAABB.min = glm::min(modelAABB.min, pos);
-                modelAABB.max = glm::max(modelAABB.max, pos);
-            }
+            const glm::vec4 worldPos = nodeTransform * glm::vec4(p.x, p.y, p.z, 1.0f);
+            const glm::vec3 pos(worldPos.x, worldPos.y, worldPos.z);
+            modelAABB.min = glm::min(modelAABB.min, pos);
+            modelAABB.max = glm::max(modelAABB.max, pos);
         }
     }
 
-    processNode(scene->mRootNode, scene);
+    for (unsigned int i = 0; i < node->mNumChildren; ++i) {
+        ComputeAABB(node->mChildren[i], nodeTransform);
+    }
 }
 
 void Model::processNode(aiNode *node, const aiScene *scene) {

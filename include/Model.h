@@ -68,6 +68,10 @@ private:
 
     void LoadModel(const std::string& path);
     void processNode(aiNode *node, const aiScene *scene);
+    // Calcula el AABB aplicando recursivamente las transformaciones de los nodos.
+    // Sin esto, los meshes hijos quedan en espacios locales disjuntos y el AABB
+    // resultante no representa la silueta real del modelo.
+    void ComputeAABB(aiNode* node, const glm::mat4& parentTransform);
     Mesh processMesh(aiMesh *mesh, const aiScene *scene);
     std::vector<Texture> loadMaterialTextures(aiMaterial *mat, aiTextureType type, std::string typeName);
     unsigned int TextureFromFile(const char *path, const std::string &directory);

@@ -1,7 +1,7 @@
 #include "Train.h"
 
 namespace {
-constexpr float kLaneWidth = 2.0f;
+constexpr float kLaneWidth = 3.0f;
 
 // Convierte el indice de carril al eje X del mundo logico.
 float LaneX(int lane) {

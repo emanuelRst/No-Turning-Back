@@ -11,6 +11,10 @@
 // solo necesita su posicion, velocidad e hitbox.
 class Player : public GameObject {
 public:
+    // Escala uniforme aplicada al jugador (hitbox + visual) al cargar el AABB.
+    // Permite reducir la silueta del personaje sin tocar el asset original.
+    static constexpr float kPlayerScale = 0.7f;
+
     Player();
 
     // Update sin objetos mantiene compatibilidad con pruebas simples.

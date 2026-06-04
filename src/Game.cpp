@@ -108,15 +108,14 @@ void main() {
 
 
 namespace {
-constexpr float kWorldScale = 0.25f;
-constexpr float kHeightScale = 0.2f;
-constexpr float kRenderGroundY = -0.5f;
-constexpr float kTrainWidth = 1.55f;
+constexpr float kRenderGroundY = 0.0f;
+constexpr float kTrainWidth = 1.20f;
 constexpr float kTrainHeight = 1.15f;
 constexpr float kTrainDepth = 5.0f;
 constexpr float kBaseTrainSpeed = 20.0f;
-constexpr float kMaxSpeedMultiplier = 3.0f;
-constexpr float kSpeedRampTime = 300.0f; // 5 minutos en segundos
+// Rampa de velocidad: la velocidad crece sin tope. Con 300s tarda 5 minutos
+// en duplicar la base (de 20 a 40 m/s) y se sigue incrementando linealmente.
+constexpr float kSpeedRampTime = 300.0f;
 constexpr float kTrainSpawnDistance = 50.0f;
 constexpr float kTrainSpacing = 16.0f;
 constexpr float kTrainDespawnDistance = 8.0f;
@@ -167,7 +166,16 @@ bool Game::Init() {
     playerModel = new Model("assets/models/run_forrest/scene.gltf");
 
     // Ajustar hitbox del jugador usando el AABB del modelo (calculado en Model via Assimp).
-    player.SetHitboxFromModelAABB(playerModel->GetAABB());
+    // Si la carga falla, el AABB cae al fallback unitario del Model y la hitbox
+    // resultante no sería representativa. En ese caso conservamos la provisional.
+    const ModelAABB loadedAABB = playerModel->GetAABB();
+    if (loadedAABB.min.x < loadedAABB.max.x && loadedAABB.min.y < loadedAABB.max.y) {
+        player.SetHitboxFromModelAABB(loadedAABB);
+        std::cout << "Player AABB loaded: min=(" << loadedAABB.min.x << "," << loadedAABB.min.y << "," << loadedAABB.min.z
+                  << ") max=(" << loadedAABB.max.x << "," << loadedAABB.max.y << "," << loadedAABB.max.z << ")" << std::endl;
+    } else {
+        std::cerr << "WARN: player model AABB invalid, keeping provisional hitbox." << std::endl;
+    }
 
     // Configurar callback
     glfwSetKeyCallback(window, KeyCallback);
@@ -326,7 +334,9 @@ void Game::Run() {
 }
 
 float Game::GetCurrentSpeed() const {
-    float multiplier = std::min(kMaxSpeedMultiplier, 1.0f + gameTime / (kSpeedRampTime / 2.0f));
+    // Crecimiento lineal sin tope. La velocidad base se duplica cada
+    // kSpeedRampTime segundos y sigue aumentando mientras gameTime crezca.
+    float multiplier = 1.0f + gameTime / kSpeedRampTime;
     return kBaseTrainSpeed * multiplier;
 }
 
@@ -400,17 +410,18 @@ void Game::ResetRun() {
         Train(2, playerZ - kTrainSpawnDistance - kTrainSpacing * 2.0f, trainSize, kBaseTrainSpeed)
     };
 
-    // Inicializar suelo
+    // Inicializar suelo (ancho suficiente para cubrir la vía completa + margen).
+    constexpr float kGroundWidth = 8.0f;
     groundSegments.clear();
     for (int i = 0; i < kNumGroundSegments; ++i) {
         float zPos = playerZ - (i * kGroundSegmentLength);
-        groundSegments.emplace_back(glm::vec3(0.0f, 0.0f, zPos), glm::vec3(5.0f, 0.1f, kGroundSegmentLength));
+        groundSegments.emplace_back(glm::vec3(0.0f, 0.0f, zPos), glm::vec3(kGroundWidth, 0.1f, kGroundSegmentLength));
     }
 }
 
 void Game::Render() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    
+
     if (currentState == GameState::MENU) {
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
@@ -420,155 +431,97 @@ void Game::Render() {
     }
 
     glUseProgram(shaderProgram);
-    
+
     glm::vec3 pos = player.GetPosition();
-    
-    // Cámara inclinada hacia abajo
-    glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 1.0f, 2.5f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    
-    // Ajustar aspecto para pantalla completa
+    glm::vec3 playerSize = player.GetCollisionSize();
+
+    // Cámara que sigue al jugador en X y Z, con vista más cenital que
+    // permite ver la vía completa. El target se eleva ligeramente para
+    // centrar la escena en la pantalla en vez de en el suelo.
+    glm::vec3 cameraTarget(pos.x, 0.3f, pos.z);
+    glm::vec3 cameraPos = cameraTarget + glm::vec3(0.0f, 2.5f, 6.0f);
+    glm::mat4 view = glm::lookAt(cameraPos, cameraTarget, glm::vec3(0.0f, 1.0f, 0.0f));
+
     int fbWidth, fbHeight;
     glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
     float aspect = (float)fbWidth / (float)fbHeight;
-    glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
-    
-    // Escalar si está saltando
-    float scaleFactor = player.IsJumping() ? 1.2f : 1.0f;
-    // Para el cubo fallback NO escalamos por el AABB del modelo.
-    // El modelo glTF se dibuja aparte con una escala fija; escalar por
-    // player.GetCollisionSize() puede deformar el cubo visual y dar la
-    // sensación de colisión centrada en el AABB.
-    glm::vec3 playerSize = player.GetCollisionSize();
+    glm::mat4 projection = glm::perspective(glm::radians(60.0f), aspect, 0.1f, 200.0f);
 
-    glm::mat4 model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(pos.x * kWorldScale,
-                                         kRenderGroundY + (pos.y * kHeightScale),
-                                         0.0f));
-
-    // Tamaño fijo del cubo de fallback (no afecta la colisión).
-    const glm::vec3 kFallbackHalfExtents(0.25f, 0.35f, 0.25f);
-    model = glm::scale(model, glm::vec3(kFallbackHalfExtents.x,
-                                         kFallbackHalfExtents.y,
-                                         kFallbackHalfExtents.z) * 2.0f * scaleFactor);
-
-    
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-    
-    glUniform3f(glGetUniformLocation(shaderProgram, "lightPos"), 1.0f, 1.0f, 2.0f);
-    glUniform3f(glGetUniformLocation(shaderProgram, "viewPos"), 0.0f, 1.0f, 2.5f); // Actualizado con la posición de la cámara
+
+    glUniform3f(glGetUniformLocation(shaderProgram, "lightPos"), 5.0f, 10.0f, 5.0f);
+    glUniform3f(glGetUniformLocation(shaderProgram, "viewPos"), cameraPos.x, cameraPos.y, cameraPos.z);
     glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"), 1.0f, 1.0f, 1.0f);
 
-    // Color del jugador: blanco normal, naranja si debilitado, sin rojo al morir
-    if (player.IsWeakened()) {
-        glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 0.6f, 0.2f);
-    } else {
-        glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 1.0f, 1.0f);
-    }
-    
-    // Dibuja el jugador con la posicion calculada por Player.
+    // Cubo base: vértices en ±0.1, por lo que un factor 5*size lo lleva al
+    // tamaño exacto de la hitbox (visual == hitbox).
+    constexpr float kCubeScaleFactor = 5.0f;
+
+    // --- Jugador ---
     if (playerModel) {
-        // Pass animated time
-        float animTime = (float)glfwGetTime();
-
-        // Enable animation in shader
         glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 1);
-
-        // Ajuste de centrado (ejemplo: offset en Y si el modelo está alto)
-        glm::mat4 visualModel = glm::translate(model, glm::vec3(0.0f, -0.5f, 0.0f)); 
-        visualModel = glm::scale(visualModel, glm::vec3(0.3f)); // Reduced size
+        // Para que los pies del modelo caigan en world y = pos.y, hay que
+        // colocar el origen local del asset de forma que su punto más bajo
+        // (AABB.min.y en espacio del asset) quede en pos.y tras la escala.
+        //   model_feet_y = translateY + (AABB.min.y * kPlayerScale)
+        //   pos.y = model_feet_y  =>  translateY = pos.y - AABB.min.y * scale
+        const ModelAABB& modelAABB = playerModel->GetAABB();
+        const float translateY = pos.y - modelAABB.min.y * Player::kPlayerScale;
+        glm::mat4 visualModel = glm::translate(glm::mat4(1.0f),
+                                               glm::vec3(pos.x, translateY, pos.z));
         visualModel = glm::rotate(visualModel, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        playerModel->Draw(shaderProgram, visualModel, animTime);
+        visualModel = glm::scale(visualModel, glm::vec3(Player::kPlayerScale));
+        if (player.IsWeakened()) {
+            glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 0.6f, 0.2f);
+        } else {
+            glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 1.0f, 1.0f);
+        }
+        playerModel->Draw(shaderProgram, visualModel, (float)glfwGetTime());
     } else {
         glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 0);
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+        // Anclar el cubo a los pies (mismo criterio que la hitbox y el modelo).
+        glm::mat4 playerCube = glm::translate(glm::mat4(1.0f),
+                                              glm::vec3(pos.x, pos.y + playerSize.y * 0.5f, pos.z));
+        playerCube = glm::scale(playerCube, playerSize * kCubeScaleFactor);
+        if (player.IsWeakened()) {
+            glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 0.6f, 0.2f);
+        } else {
+            glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 1.0f, 1.0f);
+        }
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(playerCube));
         glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }
 
-    // Dibuja los trenes usando el mismo cubo base del jugador.
-    glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 0); // Disable animation for trains
+    // --- Trenes ---
+    glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 0);
     glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.85f, 0.2f, 0.12f);
-    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0); // Disable texture
+    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
     glBindVertexArray(VAO);
     for (const Train& train : trains) {
-        const glm::vec3 objectPosition = train.GetPosition();
-        const glm::vec3 objectSize = train.GetHitboxSize();
-        glm::mat4 objectModel = glm::mat4(1.0f);
-        // Se aplica la misma escala visual de Y que usa el jugador para mantener coherencia.
-        objectModel = glm::translate(objectModel, glm::vec3(objectPosition.x * kWorldScale,
-                                                           kRenderGroundY + objectPosition.y * kHeightScale,
-                                                           (objectPosition.z - pos.z) * kWorldScale));
-        // Ajusta el cubo unitario al tamano logico del objeto pisable.
-        objectModel = glm::scale(objectModel, glm::vec3(objectSize.x * 1.25f,
-                                                        objectSize.y,
-                                                        objectSize.z * 1.25f));
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(objectModel));
+        const glm::vec3 tp = train.GetPosition();
+        const glm::vec3 ts = train.GetHitboxSize();
+        glm::mat4 trainModel = glm::translate(glm::mat4(1.0f), tp);
+        trainModel = glm::scale(trainModel, ts * kCubeScaleFactor);
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(trainModel));
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }
 
-    // Dibuja el suelo
-    glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 0); // Disable animation for ground
-    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.3f, 0.3f, 0.3f);
-    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0); // Disable texture
-    for (const auto& segment : groundSegments) {
-        const glm::vec3 objectPosition = segment.GetPosition();
-        const glm::vec3 objectSize = segment.GetHitboxSize();
-        glm::mat4 objectModel = glm::mat4(1.0f);
-        objectModel = glm::translate(objectModel, glm::vec3(objectPosition.x * kWorldScale,
-                                                           kRenderGroundY - 0.1f, // Ligeramente debajo
-                                                           (objectPosition.z - pos.z) * kWorldScale));
-        objectModel = glm::scale(objectModel, glm::vec3(objectSize.x * 1.5f,
-                                                        objectSize.y,
-                                                        objectSize.z * 1.25f));
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(objectModel));
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-    }
-
-    // Dibuja el suelo
-    glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 0); // Disable animation for ground
-    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.3f, 0.3f, 0.3f);
-    // ... (rest of code for ground)
-
-
-    // Dibuja los trenes usando el mismo cubo base del jugador.
-    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.85f, 0.2f, 0.12f);
-    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0); // Disable texture
-    glBindVertexArray(VAO);
-    for (const Train& train : trains) {
-        const glm::vec3 objectPosition = train.GetPosition();
-        const glm::vec3 objectSize = train.GetHitboxSize();
-        glm::mat4 objectModel = glm::mat4(1.0f);
-        // Se aplica la misma escala visual de Y que usa el jugador para mantener coherencia.
-        objectModel = glm::translate(objectModel, glm::vec3(objectPosition.x * kWorldScale,
-                                                           kRenderGroundY + objectPosition.y * kHeightScale,
-                                                           (objectPosition.z - pos.z) * kWorldScale));
-        // Ajusta el cubo unitario al tamano logico del objeto pisable.
-        objectModel = glm::scale(objectModel, glm::vec3(objectSize.x * 1.25f,
-                                                        objectSize.y,
-                                                        objectSize.z * 1.25f));
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(objectModel));
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-    }
-
-    // Dibuja el suelo con desplazamiento continuo (sin saltos)
+    // --- Suelo con scroll continuo ---
     glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.3f, 0.3f, 0.3f);
     glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
     glBindVertexArray(VAO);
     float scrollZ = groundScroll - (int)(groundScroll / kGroundSegmentLength) * kGroundSegmentLength;
     for (const auto& segment : groundSegments) {
-        const glm::vec3 objectPosition = segment.GetPosition();
-        const glm::vec3 objectSize = segment.GetHitboxSize();
-        glm::mat4 objectModel = glm::mat4(1.0f);
-        objectModel = glm::translate(objectModel, glm::vec3(objectPosition.x * kWorldScale,
-                                                            kRenderGroundY - 0.1f,
-                                                            (objectPosition.z - pos.z + scrollZ) * kWorldScale));
-        objectModel = glm::scale(objectModel, glm::vec3(objectSize.x * 1.5f,
-                                                         objectSize.y,
-                                                         objectSize.z * 1.25f));
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(objectModel));
+        const glm::vec3 sp = segment.GetPosition();
+        const glm::vec3 ss = segment.GetHitboxSize();
+        // La cara superior del segmento queda en y=0 restando media altura.
+        glm::mat4 segModel = glm::translate(glm::mat4(1.0f),
+                                            glm::vec3(sp.x, sp.y - ss.y * 0.5f, sp.z + scrollZ));
+        segModel = glm::scale(segModel, ss * kCubeScaleFactor);
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(segModel));
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }
 }

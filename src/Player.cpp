@@ -4,7 +4,7 @@
 #include <vector>
 
 namespace {
-constexpr float kLaneWidth = 2.0f;
+constexpr float kLaneWidth = 3.0f;
 
 // Hitbox provisional del jugador. Se reemplaza al cargar el modelo.
 const glm::vec3 kPlayerHitboxSize(0.9f, 1.1f, 0.9f);
@@ -208,46 +208,37 @@ void Player::SetHitboxFromModelAABB(const ModelAABB& aabb) {
     size.y = std::max(std::abs(size.y), kMinSize);
     size.z = std::max(std::abs(size.z), kMinSize);
 
-    const glm::vec3 center = (aabb.min + aabb.max) * 0.5f;
+    // Aplicar la escala global del jugador (hitbox = visual).
+    size *= kPlayerScale;
 
+    // Anclar la hitbox a los pies: con centerOffset.y = size.y/2, los bounds del
+    // player quedan [position, position + size], de modo que position.y es el suelo.
+    // En X/Z se mantiene centrado en el carril (offset 0).
     Hitbox hb;
     hb.enabled = true;
     hb.size = size;
-    hb.centerOffset = center;
+    hb.centerOffset = glm::vec3(0.0f, size.y * 0.5f, 0.0f);
 
     SetHitbox(hb);
 }
 
 
 void Player::Reset() {
-    // El centro del player se coloca de forma que su borde inferior toque el suelo (y=0).
-    // Calculamos directamente usando la hitbox actual (que ya debería haberse
-    // ajustado con el AABB del modelo).
-    const float halfY = GetHitboxSize().y * 0.5f;
-    const float centerOffsetY = GetHitbox().centerOffset.y;
-
-    // Queremos: (position.y + centerOffsetY) - halfY = 0  => position.y = halfY - centerOffsetY
+    // Con el nuevo centroOffset (0, size.y/2, 0), position.y = 0 deja los pies
+    // exactamente sobre el suelo, así que no hace falta un cálculo extra.
     position.x = 0.0f;
-    position.y = halfY - centerOffsetY;
+    position.y = 0.0f;
     position.z = -5.0f;
 
-    // Recalculamos bounds por si hay alguna diferencia numérica y reajustamos
-    // mínimamente para que quede exactamente en y=0.
+    // Ajuste defensivo por redondeo: si el offset cambió en una corrida previa,
+    // igualamos el borde inferior al suelo.
     const Bounds b = GetBounds();
-    const float desiredBottomY = 0.0f;
-    const float currentBottomY = b.min.y;
-    const float delta = desiredBottomY - currentBottomY;
-    position.y += delta;
+    position.y += -b.min.y;
 
     // Carril inicial y reinicio de estado.
     targetX = 0.0f;
     currentLane = 1;
-
-    // Z fija.
     position.z = -5.0f;
-
-    // Si aún no se cargó el AABB desde el modelo, mantenemos la hitbox provisional.
-    // (SetHitboxFromModelAABB sobrescribirá luego el hitbox real.)
 
     velocity = glm::vec3(0.0f);
     isGrounded = true;
