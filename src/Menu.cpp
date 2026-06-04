@@ -42,6 +42,15 @@ Menu::~Menu() {
     glDeleteTextures(1, &atlasTexture);
 }
 
+float Menu::GetTextWidth(const std::string& text, float scale) {
+    float width = 0;
+    for (char c : text) {
+        if (Characters.find(c) != Characters.end())
+            width += Characters[c].Advance * scale;
+    }
+    return width;
+}
+
 void Menu::Init(const std::string& fontPath) {
     // Compile shaders
     unsigned int vShader = glCreateShader(GL_VERTEX_SHADER);
@@ -100,6 +109,14 @@ void Menu::Init(const std::string& fontPath) {
         };
         Characters.insert(std::pair<char, Character>(32 + i, ch));
     }
+
+    // Actualizar dimensiones de botones basados en el texto
+    for (auto& button : buttons) {
+        button.width = GetTextWidth(button.text, 1.0f);
+        button.height = 64.0f; // Altura aproximada del texto
+        button.x -= button.width / 3.0f; // Ajustar x para centrar
+        button.y -= button.height / 2.0f; // Ajustar y para centrar
+    }
 }
 
 void Menu::Update(double mouseX, double mouseY, int width, int height) {
@@ -111,34 +128,13 @@ void Menu::Update(double mouseX, double mouseY, int width, int height) {
 
 void Menu::Render(unsigned int shaderProgram, unsigned int quadVAO, int width, int height) {
     glDisable(GL_DEPTH_TEST);
-    glUseProgram(shaderProgram);
-    glBindVertexArray(quadVAO);
-
-    glm::mat4 projection = glm::ortho(0.0f, (float)width, (float)height, 0.0f);
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-
+    
+    // Dibujar texto directamente
     for (const auto& button : buttons) {
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(button.x + button.width/2, button.y + button.height/2, 0.0f));
-        model = glm::scale(model, glm::vec3(button.width, button.height, 1.0f));
-        
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
-        
-        if (button.isHovered) {
-            glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.0f, 0.5f, 0.8f);
-        } else {
-            glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.0f, 0.75f, 1.0f);
-        }
-        
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-        
-        RenderText(button.text, button.x + button.width/2, button.y + button.height/2, 1.0f, glm::vec3(1.0f, 1.0f, 1.0f), width, height);
-        
-        // Restore shader for button rendering
-        glUseProgram(shaderProgram);
-        glBindVertexArray(quadVAO);
+        glm::vec3 color = button.isHovered ? glm::vec3(0.0f, 0.5f, 0.8f) : glm::vec3(1.0f, 1.0f, 1.0f);
+        // Usar button.x y button.y como centro
+        RenderText(button.text, button.x, button.y, 1.0f, color, width, height);
     }
-
     
     glEnable(GL_DEPTH_TEST);
 }
@@ -214,4 +210,5 @@ bool Menu::HandleClick(double mouseX, double mouseY) {
 
 void Menu::AddButton(const std::string& text, float x, float y, float w, float h, std::function<void()> onClick) {
     buttons.push_back({text, x, y, w, h, false, onClick});
+
 }

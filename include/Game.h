@@ -14,7 +14,7 @@
 // Forward declaration
 class Menu;
 
-enum class GameState { MENU, PLAYING };
+enum class GameState { MENU, PLAYING, CHARACTER_SELECT, OPTIONS, CREDITS };
 
 // Clase sencilla para los segmentos del suelo
 class GroundSegment : public GameObject {

@@ -130,13 +130,13 @@ Game::Game(int w, int h)
     instance = this;
     
     // Configurar botones del menú (Tamaño 600x150)
-    menu->AddButton("Iniciar Juego", 660, 200, 600, 150, [this](){ 
+    menu->AddButton("Iniciar Juego", 1125, 200, 600, 150, [this](){ 
         this->currentState = GameState::PLAYING;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     });
-    menu->AddButton("Cambiar Personajes", 660, 370, 600, 150, [](){ std::cout << "Personajes\n"; });
-    menu->AddButton("Opciones", 660, 540, 600, 150, [](){ std::cout << "Opciones\n"; });
-    menu->AddButton("Creditos", 660, 710, 600, 150, [](){ std::cout << "Creditos\n"; });
+    menu->AddButton("Cambiar Personajes", 1200, 370, 700, 150, [](){});
+    menu->AddButton("Opciones", 1060, 540, 600, 150, [](){});
+    menu->AddButton("Creditos", 1060, 710, 600, 150, [](){});
     
     ResetRun();
 }
@@ -262,7 +262,7 @@ bool Game::Init() {
 void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (instance && action == GLFW_PRESS) {
         if (key == GLFW_KEY_ESCAPE) {
-            if (instance->currentState == GameState::PLAYING) {
+            if (instance->currentState != GameState::MENU) {
                 instance->currentState = GameState::MENU;
                 glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
             } else {
@@ -408,10 +408,23 @@ void Game::ResetRun() {
 void Game::Render() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
-    if (currentState == GameState::MENU) {
+    if (currentState != GameState::PLAYING) {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
-        menu->Render(menuShaderProgram, VAO, fbWidth, fbHeight);
+        if (currentState == GameState::MENU) {
+            menu->Render(menuShaderProgram, VAO, fbWidth, fbHeight);
+        } else {
+            // Renderizar placeholder para otras pantallas
+            std::string text = "Pantalla: ";
+            if (currentState == GameState::CHARACTER_SELECT) text += "Personajes";
+            else if (currentState == GameState::OPTIONS) text += "Opciones";
+            else if (currentState == GameState::CREDITS) text += "Creditos";
+            
+            // Reutilizar el sistema de renderizado de texto del menu
+            menu->RenderText(text, fbWidth / 2.0f, fbHeight / 2.0f, 1.0f, glm::vec3(1.0f, 1.0f, 1.0f), fbWidth, fbHeight);
+            menu->RenderText("Presiona ESC para volver", fbWidth / 2.0f, fbHeight / 2.0f + 50.0f, 0.5f, glm::vec3(1.0f, 1.0f, 1.0f), fbWidth, fbHeight);
+        }
         glfwSwapBuffers(window);
         return;
     }
