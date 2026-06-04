@@ -30,12 +30,13 @@ public:
     void Init(const std::string& fontPath);
     void Update(double mouseX, double mouseY, int width, int height);
     void Render(unsigned int shaderProgram, unsigned int quadVAO, int width, int height);
+    void RenderText(const std::string& text, float x, float y, float scale, glm::vec3 color, int width, int height);
     bool HandleClick(double mouseX, double mouseY);
     void AddButton(const std::string& text, float x, float y, float w, float h, std::function<void()> onClick);
+    float GetTextWidth(const std::string& text, float scale);
 
 private:
     std::vector<Button> buttons;
-    void RenderText(const std::string& text, float x, float y, float scale, glm::vec3 color, int width, int height);
     
     std::map<char, Character> Characters;
     unsigned int textVAO, textVBO;

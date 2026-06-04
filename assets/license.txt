@@ -1,0 +1,11 @@
+Model Information:
+* title:	THICC Amongus
+* source:	https://sketchfab.com/3d-models/thicc-amongus-6bdc3dd10dde46d3b9f74e1e47fc9a18
+* author:	162933 (https://sketchfab.com/162933)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "THICC Amongus" (https://sketchfab.com/3d-models/thicc-amongus-6bdc3dd10dde46d3b9f74e1e47fc9a18) by 162933 (https://sketchfab.com/162933) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
