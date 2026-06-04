@@ -79,7 +79,9 @@ constexpr float kRenderGroundY = -0.5f;
 constexpr float kTrainWidth = 1.55f;
 constexpr float kTrainHeight = 1.15f;
 constexpr float kTrainDepth = 5.0f;
-constexpr float kTrainSpeed = 20.0f;
+constexpr float kBaseTrainSpeed = 20.0f;
+constexpr float kMaxSpeedMultiplier = 3.0f;
+constexpr float kSpeedRampTime = 300.0f; // 5 minutos en segundos
 constexpr float kTrainSpawnDistance = 50.0f;
 constexpr float kTrainSpacing = 16.0f;
 constexpr float kTrainDespawnDistance = 8.0f;
@@ -90,7 +92,7 @@ constexpr int kNumGroundSegments = 5;
 
 Game::Game(int w, int h)
     : window(nullptr), width(w), height(h), shaderProgram(0), VAO(0),
-      playerModel(nullptr), trains(), nextTrainLane(0) {
+      playerModel(nullptr), trains(), nextTrainLane(0), gameTime(0.0f), groundScroll(0.0f) {
     instance = this;
     ResetRun();
 }
@@ -113,6 +115,9 @@ bool Game::Init() {
     
     // Cargar modelo del jugador
     playerModel = new Model("assets/models/player/scene.gltf");
+
+    // Ajustar hitbox del jugador usando el AABB del modelo (calculado en Model via Assimp).
+    player.SetHitboxFromModelAABB(playerModel->GetAABB());
 
     // Configurar callback
     glfwSetKeyCallback(window, KeyCallback);
@@ -188,7 +193,6 @@ bool Game::Init() {
     // Position attribute
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-    // Normal attribute
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
@@ -228,13 +232,22 @@ void Game::Run() {
     }
 }
 
+float Game::GetCurrentSpeed() const {
+    float multiplier = std::min(kMaxSpeedMultiplier, 1.0f + gameTime / (kSpeedRampTime / 2.0f));
+    return kBaseTrainSpeed * multiplier;
+}
+
 void Game::Update(float deltaTime) {
     if (player.HasCrashed()) {
         return;
     }
 
-    UpdateTrains(deltaTime);
-    UpdateGround(deltaTime); // Nuevo
+    gameTime += deltaTime;
+    float currentSpeed = GetCurrentSpeed();
+    groundScroll += currentSpeed * deltaTime;
+
+    UpdateTrains(deltaTime, currentSpeed);
+    UpdateGround(deltaTime, currentSpeed);
 
     std::vector<GameObject*> collisionObjects;
     collisionObjects.reserve(trains.size());
@@ -245,10 +258,11 @@ void Game::Update(float deltaTime) {
     player.Update(deltaTime, collisionObjects);
 }
 
-void Game::UpdateTrains(float deltaTime) {
+void Game::UpdateTrains(float deltaTime, float currentSpeed) {
     const float playerZ = player.GetPosition().z;
 
     for (Train& train : trains) {
+        train.SetSpeed(currentSpeed);
         train.Update(deltaTime);
 
         if (train.BackEdgeZ() > playerZ + kTrainDespawnDistance) {
@@ -257,22 +271,9 @@ void Game::UpdateTrains(float deltaTime) {
     }
 }
 
-void Game::UpdateGround(float deltaTime) {
-    const float playerZ = player.GetPosition().z;
-    
-    // Buscar el segmento mas lejano
-    float farthestZ = 0.0f;
-    for (const auto& segment : groundSegments) {
-        farthestZ = std::min(farthestZ, segment.GetPosition().z);
-    }
-
-    // Reciclar segmentos que quedaron detras
-    for (auto& segment : groundSegments) {
-        if (segment.GetPosition().z > playerZ + kTrainDespawnDistance) {
-            segment.SetPosition(glm::vec3(0.0f, 0.0f, farthestZ - kGroundSegmentLength));
-            farthestZ = segment.GetPosition().z;
-        }
-    }
+void Game::UpdateGround(float /*deltaTime*/, float /*currentSpeed*/) {
+    // El suelo se desplaza visualmente mediante groundScroll en Render().
+    // Los segmentos permanecen en su posicion inicial, evitando saltos visuales.
 }
 
 void Game::ResetTrain(Train& train) {
@@ -286,20 +287,22 @@ void Game::ResetTrain(Train& train) {
     }
 
     train.Reset(nextTrainLane, farthestZ - kTrainSpacing,
-                glm::vec3(kTrainWidth, kTrainHeight, kTrainDepth), kTrainSpeed);
+                glm::vec3(kTrainWidth, kTrainHeight, kTrainDepth), kBaseTrainSpeed);
     nextTrainLane = (nextTrainLane + 2) % 3;
 }
 
 void Game::ResetRun() {
     player.Reset();
     nextTrainLane = 0;
+    gameTime = 0.0f;
+    groundScroll = 0.0f;
 
     const glm::vec3 trainSize(kTrainWidth, kTrainHeight, kTrainDepth);
     const float playerZ = player.GetPosition().z;
     trains = {
-        Train(1, playerZ - kTrainSpawnDistance, trainSize, kTrainSpeed),
-        Train(0, playerZ - kTrainSpawnDistance - kTrainSpacing, trainSize, kTrainSpeed),
-        Train(2, playerZ - kTrainSpawnDistance - kTrainSpacing * 2.0f, trainSize, kTrainSpeed)
+        Train(1, playerZ - kTrainSpawnDistance, trainSize, kBaseTrainSpeed),
+        Train(0, playerZ - kTrainSpawnDistance - kTrainSpacing, trainSize, kBaseTrainSpeed),
+        Train(2, playerZ - kTrainSpawnDistance - kTrainSpacing * 2.0f, trainSize, kBaseTrainSpeed)
     };
 
     // Inicializar suelo
@@ -327,14 +330,23 @@ void Game::Render() {
     
     // Escalar si está saltando
     float scaleFactor = player.IsJumping() ? 1.2f : 1.0f;
+    // Para el cubo fallback NO escalamos por el AABB del modelo.
+    // El modelo glTF se dibuja aparte con una escala fija; escalar por
+    // player.GetCollisionSize() puede deformar el cubo visual y dar la
+    // sensación de colisión centrada en el AABB.
     glm::vec3 playerSize = player.GetCollisionSize();
-    
+
     glm::mat4 model = glm::mat4(1.0f);
-    // Centrado en X (pos.x * 0.25f), y movido hacia abajo en Y
-    model = glm::translate(model, glm::vec3(pos.x * kWorldScale, kRenderGroundY + (pos.y * kHeightScale), 0.0f));
-    model = glm::scale(model, glm::vec3(playerSize.x * 0.8f,
-                                        playerSize.y * 0.8f,
-                                        playerSize.z * 0.8f) * scaleFactor);
+    model = glm::translate(model, glm::vec3(pos.x * kWorldScale,
+                                         kRenderGroundY + (pos.y * kHeightScale),
+                                         0.0f));
+
+    // Tamaño fijo del cubo de fallback (no afecta la colisión).
+    const glm::vec3 kFallbackHalfExtents(0.25f, 0.35f, 0.25f);
+    model = glm::scale(model, glm::vec3(kFallbackHalfExtents.x,
+                                         kFallbackHalfExtents.y,
+                                         kFallbackHalfExtents.z) * 2.0f * scaleFactor);
+
     
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
@@ -343,8 +355,10 @@ void Game::Render() {
     glUniform3f(glGetUniformLocation(shaderProgram, "lightPos"), 1.0f, 1.0f, 2.0f);
     glUniform3f(glGetUniformLocation(shaderProgram, "viewPos"), 0.0f, 1.0f, 2.5f); // Actualizado con la posición de la cámara
     glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"), 1.0f, 1.0f, 1.0f);
-    if (player.HasCrashed()) {
-        glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.9f, 0.15f, 0.1f);
+
+    // Color del jugador: blanco normal, naranja si debilitado, sin rojo al morir
+    if (player.IsWeakened()) {
+        glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 0.6f, 0.2f);
     } else {
         glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 1.0f, 1.0f);
     }
@@ -381,19 +395,21 @@ void Game::Render() {
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }
 
-    // Dibuja el suelo
+    // Dibuja el suelo con desplazamiento continuo (sin saltos)
     glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.3f, 0.3f, 0.3f);
-    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0); // Disable texture
+    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
+    glBindVertexArray(VAO);
+    float scrollZ = groundScroll - (int)(groundScroll / kGroundSegmentLength) * kGroundSegmentLength;
     for (const auto& segment : groundSegments) {
         const glm::vec3 objectPosition = segment.GetPosition();
         const glm::vec3 objectSize = segment.GetHitboxSize();
         glm::mat4 objectModel = glm::mat4(1.0f);
         objectModel = glm::translate(objectModel, glm::vec3(objectPosition.x * kWorldScale,
-                                                           kRenderGroundY - 0.1f, // Ligeramente debajo
-                                                           (objectPosition.z - pos.z) * kWorldScale));
+                                                            kRenderGroundY - 0.1f,
+                                                            (objectPosition.z - pos.z + scrollZ) * kWorldScale));
         objectModel = glm::scale(objectModel, glm::vec3(objectSize.x * 1.5f,
-                                                        objectSize.y,
-                                                        objectSize.z * 1.25f));
+                                                         objectSize.y,
+                                                         objectSize.z * 1.25f));
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(objectModel));
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }

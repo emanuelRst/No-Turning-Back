@@ -2,7 +2,10 @@
 #define PLAYER_H
 
 #include "GameObject.h"
+#include "Model.h"
 #include <vector>
+
+
 
 // Player es otro GameObject: su modelo visual puede cambiar, pero la fisica
 // solo necesita su posicion, velocidad e hitbox.
@@ -26,11 +29,19 @@ public:
     bool IsJumping() const { return isJumping; }
     bool IsOnObject() const { return isOnObject; }
     bool HasCrashed() const { return hasCrashed; }
+    bool IsWeakened() const { return isWeakened; }
+    float GetWeakenedTimer() const { return weakenedTimer; }
+
+public:
+    // Ajusta la hitbox del jugador usando un AABB calculado del modelo.
+    // Esto permite que la física coincida con el mesh visual.
+    void SetHitboxFromModelAABB(const ModelAABB& aabb);
 
 private:
     // targetX permite interpolar suavemente al cambiar de carril.
     float targetX;
     int currentLane;
+    int previousLane;
 
     // Estado fisico vertical. X/Z se controlan por carriles y por el avance de objetos.
     glm::vec3 velocity;
@@ -38,6 +49,8 @@ private:
     bool isJumping;
     bool isOnObject;
     bool hasCrashed;
+    bool isWeakened;
+    float weakenedTimer;
 
     const float jumpForce = 8.0f;
     const float gravity = 20.0f;

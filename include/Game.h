@@ -28,11 +28,13 @@ public:
     static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
     static void FramebufferSizeCallback(GLFWwindow* window, int width, int height);
 
+    float GetCurrentSpeed() const;
+
 private:
     void Update(float deltaTime);
     void Render();
-    void UpdateTrains(float deltaTime);
-    void UpdateGround(float deltaTime); // Nuevo método
+    void UpdateTrains(float deltaTime, float currentSpeed);
+    void UpdateGround(float deltaTime, float currentSpeed);
     void ResetTrain(Train& train);
     void ResetRun();
 
@@ -44,8 +46,11 @@ private:
     unsigned int VAO;
     Model* playerModel;
     std::vector<Train> trains;
-    std::vector<GroundSegment> groundSegments; // Nuevo contenedor
+    std::vector<GroundSegment> groundSegments;
     int nextTrainLane;
+
+    float gameTime;
+    float groundScroll;
 
     // Instancia estática para acceder desde el callback
     static Game* instance;

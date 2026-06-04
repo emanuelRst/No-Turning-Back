@@ -28,6 +28,11 @@ struct Mesh {
     unsigned int VAO, VBO, EBO;
 };
 
+struct ModelAABB {
+    glm::vec3 min{0.0f};
+    glm::vec3 max{0.0f};
+};
+
 class Model {
 public:
     Model(const std::string& path);
@@ -35,10 +40,15 @@ public:
 
     void Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix);
 
+    // AABB calculado en espacio del asset (sin transformar por el modelo Matrix).
+    // Sirve para ajustar colisiones sin depender del tamaño/forma hardcodeada.
+    ModelAABB GetAABB() const { return modelAABB; }
+
 private:
     std::vector<Mesh> meshes;
     std::string directory;
     std::vector<Texture> textures_loaded;
+    ModelAABB modelAABB{};
 
     void LoadModel(const std::string& path);
     void processNode(aiNode *node, const aiScene *scene);

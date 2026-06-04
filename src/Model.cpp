@@ -58,7 +58,30 @@ void Model::LoadModel(const std::string& path) {
         std::cerr << "ERROR::ASSIMP::" << importer.GetErrorString() << std::endl;
         return;
     }
+
     directory = std::filesystem::path(path).parent_path().string();
+    modelAABB = ModelAABB{};
+
+    // Para el AABB del modelo, iteramos vértices en espacio del asset (sin aplicar matrices de nodos).
+    // Nota: esto asume que los vértices ya vienen coherentes en el asset.
+    for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
+        const aiMesh* mesh = scene->mMeshes[m];
+        if (!mesh || mesh->mNumVertices == 0) continue;
+
+        for (unsigned int v = 0; v < mesh->mNumVertices; ++v) {
+            const aiVector3D p = mesh->mVertices[v];
+            glm::vec3 pos(p.x, p.y, p.z);
+
+            if (m == 0 && v == 0) {
+                modelAABB.min = pos;
+                modelAABB.max = pos;
+            } else {
+                modelAABB.min = glm::min(modelAABB.min, pos);
+                modelAABB.max = glm::max(modelAABB.max, pos);
+            }
+        }
+    }
+
     processNode(scene->mRootNode, scene);
 }
 

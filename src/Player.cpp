@@ -6,8 +6,7 @@
 namespace {
 constexpr float kLaneWidth = 2.0f;
 
-// Hitbox inicial del jugador. Cuando haya modelo, esta caja puede ajustarse
-// al cuerpo real sin cambiar la logica de Player.
+// Hitbox provisional del jugador. Se reemplaza al cargar el modelo.
 const glm::vec3 kPlayerHitboxSize(0.9f, 1.1f, 0.9f);
 
 // Convierte carril logico (0, 1, 2) a posicion X.
@@ -24,7 +23,10 @@ Player::Player()
       isGrounded(true),
       isJumping(false),
       isOnObject(false),
-      hasCrashed(false) {
+      hasCrashed(false),
+      isWeakened(false),
+      weakenedTimer(0.0f),
+      previousLane(1) {
     Reset();
 }
 
@@ -38,6 +40,15 @@ void Player::Update(float deltaTime, const std::vector<GameObject*>& collisionOb
     // Despues de un choque se congela la simulacion hasta que Game haga ResetRun().
     if (hasCrashed) {
         return;
+    }
+
+    // Actualizar timer de estado debilitado
+    if (isWeakened) {
+        weakenedTimer -= deltaTime;
+        if (weakenedTimer <= 0.0f) {
+            isWeakened = false;
+            weakenedTimer = 0.0f;
+        }
     }
 
     UpdateLaneMovement(deltaTime);
@@ -113,11 +124,20 @@ void Player::UpdatePhysics(float deltaTime, const std::vector<GameObject*>& coll
     // Si no aterrizo sobre el techo, una interseccion completa cuenta como choque.
     const GameObject* blocker = FindBlockingObject(collisionObjects);
     if (blocker != nullptr) {
-        hasCrashed = true;
-        velocity = glm::vec3(0.0f);
-        isJumping = false;
-        isGrounded = true;
-        isOnObject = false;
+        if (isWeakened) {
+            // Segundo golpe mientras debilitado: muerte
+            hasCrashed = true;
+            velocity = glm::vec3(0.0f);
+            isJumping = false;
+            isGrounded = true;
+            isOnObject = false;
+        } else {
+            // Primer golpe: entra en estado debilitado y vuelve al carril anterior
+            currentLane = previousLane;
+            targetX = LaneX(currentLane);
+            isWeakened = true;
+            weakenedTimer = 5.0f;
+        }
     }
 }
 
@@ -179,17 +199,64 @@ const GameObject* Player::FindBlockingObject(const std::vector<GameObject*>& col
     return nullptr;
 }
 
+void Player::SetHitboxFromModelAABB(const ModelAABB& aabb) {
+    glm::vec3 size = aabb.max - aabb.min;
+
+    // Evitar degeneración (por si el AABB es raro).
+    const float kMinSize = 0.001f;
+    size.x = std::max(std::abs(size.x), kMinSize);
+    size.y = std::max(std::abs(size.y), kMinSize);
+    size.z = std::max(std::abs(size.z), kMinSize);
+
+    const glm::vec3 center = (aabb.min + aabb.max) * 0.5f;
+
+    Hitbox hb;
+    hb.enabled = true;
+    hb.size = size;
+    hb.centerOffset = center;
+
+    SetHitbox(hb);
+}
+
+
 void Player::Reset() {
-    // El centro del player se coloca a media altura para que su borde inferior toque el suelo.
-    SetHitboxSize(kPlayerHitboxSize);
-    SetPosition(glm::vec3(0.0f, kPlayerHitboxSize.y * 0.5f, -5.0f));
+    // El centro del player se coloca de forma que su borde inferior toque el suelo (y=0).
+    // Calculamos directamente usando la hitbox actual (que ya debería haberse
+    // ajustado con el AABB del modelo).
+    const float halfY = GetHitboxSize().y * 0.5f;
+    const float centerOffsetY = GetHitbox().centerOffset.y;
+
+    // Queremos: (position.y + centerOffsetY) - halfY = 0  => position.y = halfY - centerOffsetY
+    position.x = 0.0f;
+    position.y = halfY - centerOffsetY;
+    position.z = -5.0f;
+
+    // Recalculamos bounds por si hay alguna diferencia numérica y reajustamos
+    // mínimamente para que quede exactamente en y=0.
+    const Bounds b = GetBounds();
+    const float desiredBottomY = 0.0f;
+    const float currentBottomY = b.min.y;
+    const float delta = desiredBottomY - currentBottomY;
+    position.y += delta;
+
+    // Carril inicial y reinicio de estado.
     targetX = 0.0f;
     currentLane = 1;
+
+    // Z fija.
+    position.z = -5.0f;
+
+    // Si aún no se cargó el AABB desde el modelo, mantenemos la hitbox provisional.
+    // (SetHitboxFromModelAABB sobrescribirá luego el hitbox real.)
+
     velocity = glm::vec3(0.0f);
     isGrounded = true;
     isJumping = false;
     isOnObject = false;
     hasCrashed = false;
+    isWeakened = false;
+    weakenedTimer = 0.0f;
+    previousLane = 1;
 }
 
 void Player::MoveLeft() {
@@ -199,6 +266,7 @@ void Player::MoveLeft() {
     }
 
     if (currentLane > 0) {
+        previousLane = currentLane;
         currentLane--;
         targetX = LaneX(currentLane);
     }
@@ -211,6 +279,7 @@ void Player::MoveRight() {
     }
 
     if (currentLane < 2) {
+        previousLane = currentLane;
         currentLane++;
         targetX = LaneX(currentLane);
     }

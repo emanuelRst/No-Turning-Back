@@ -16,6 +16,7 @@ public:
     void Reset(int lane, float zPosition, const glm::vec3& hitboxSize, float speed);
 
     int GetLane() const { return lane; }
+    void SetSpeed(float newSpeed) { speed = newSpeed; }
     // Borde trasero usado para saber cuando el tren ya salio de la zona jugable.
     float BackEdgeZ() const { return GetBounds().min.z; }
 
