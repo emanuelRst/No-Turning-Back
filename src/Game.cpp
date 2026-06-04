@@ -1,4 +1,5 @@
 #include "Game.h"
+#include "Menu.h"
 #include <algorithm>
 #include <iostream>
 #include <glm/glm.hpp>
@@ -14,6 +15,8 @@ const char* vertexShaderSource = R"(
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec3 aNormal;
 layout (location = 2) in vec2 aTexCoords;
+layout (location = 3) in ivec4 aBoneIDs;
+layout (location = 4) in vec4 aWeights;
 
 out vec3 FragPos;
 out vec3 Normal;
@@ -22,9 +25,22 @@ out vec2 TexCoords;
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
+uniform mat4 boneMatrices[100];
+uniform bool isAnimated;
 
 void main() {
-    FragPos = vec3(model * vec4(aPos, 1.0));
+    vec4 totalPosition;
+    if (isAnimated) {
+        mat4 BoneTransform = boneMatrices[aBoneIDs[0]] * aWeights[0];
+        BoneTransform += boneMatrices[aBoneIDs[1]] * aWeights[1];
+        BoneTransform += boneMatrices[aBoneIDs[2]] * aWeights[2];
+        BoneTransform += boneMatrices[aBoneIDs[3]] * aWeights[3];
+        totalPosition = BoneTransform * vec4(aPos, 1.0);
+    } else {
+        totalPosition = vec4(aPos, 1.0);
+    }
+    
+    FragPos = vec3(model * totalPosition);
     Normal = mat3(transpose(inverse(model))) * aNormal;
     TexCoords = aTexCoords;
     gl_Position = projection * view * vec4(FragPos, 1.0);
@@ -70,6 +86,25 @@ void main() {
 }
 )";
 
+const char* menuVertexShaderSource = R"(
+#version 330 core
+layout (location = 0) in vec3 aPos;
+uniform mat4 model;
+uniform mat4 projection;
+void main() {
+    gl_Position = projection * model * vec4(aPos, 1.0);
+}
+)";
+
+const char* menuFragmentShaderSource = R"(
+#version 330 core
+out vec4 FragColor;
+uniform vec3 objectColor;
+void main() {
+    FragColor = vec4(objectColor, 1.0);
+}
+)";
+
 
 
 namespace {
@@ -92,13 +127,25 @@ constexpr int kNumGroundSegments = 5;
 
 Game::Game(int w, int h)
     : window(nullptr), width(w), height(h), shaderProgram(0), VAO(0),
-      playerModel(nullptr), trains(), nextTrainLane(0), gameTime(0.0f), groundScroll(0.0f) {
+      playerModel(nullptr), trains(), nextTrainLane(0), gameTime(0.0f), groundScroll(0.0f),
+      currentState(GameState::MENU), menu(new Menu()) {
     instance = this;
+    
+    // Configurar botones del menú (Tamaño 600x150)
+    menu->AddButton("Iniciar Juego", 660, 200, 600, 150, [this](){ 
+        this->currentState = GameState::PLAYING;
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    });
+    menu->AddButton("Cambiar Personajes", 660, 370, 600, 150, [](){ std::cout << "Personajes\n"; });
+    menu->AddButton("Opciones", 660, 540, 600, 150, [](){ std::cout << "Opciones\n"; });
+    menu->AddButton("Creditos", 660, 710, 600, 150, [](){ std::cout << "Creditos\n"; });
+    
     ResetRun();
 }
 
 Game::~Game() {
     delete playerModel;
+    delete menu;
     glfwTerminate();
 }
 
@@ -113,8 +160,11 @@ bool Game::Init() {
     glfwMakeContextCurrent(window);
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
     
+    // Inicializar menú
+    menu->Init("assets/fonts/stocky.ttf");
+
     // Cargar modelo del jugador
-    playerModel = new Model("assets/models/player/scene.gltf");
+    playerModel = new Model("assets/models/run_forrest/scene.gltf");
 
     // Ajustar hitbox del jugador usando el AABB del modelo (calculado en Model via Assimp).
     player.SetHitboxFromModelAABB(playerModel->GetAABB());
@@ -122,12 +172,14 @@ bool Game::Init() {
     // Configurar callback
     glfwSetKeyCallback(window, KeyCallback);
     glfwSetFramebufferSizeCallback(window, FramebufferSizeCallback);
+    glfwSetCursorPosCallback(window, CursorPosCallback);
+    glfwSetMouseButtonCallback(window, MouseButtonCallback);
 
-    // Pantalla completa y ocultar cursor
+    // Pantalla completa y ocultar cursor (cambiado inicialmente para ver el menu)
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* mode = glfwGetVideoMode(monitor);
     glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Se gestionará según el estado
 
     // Habilitar el test de profundidad
     glEnable(GL_DEPTH_TEST);
@@ -143,6 +195,18 @@ bool Game::Init() {
     glAttachShader(shaderProgram, vShader);
     glAttachShader(shaderProgram, fShader);
     glLinkProgram(shaderProgram);
+
+    // Compilar Menu Shader
+    unsigned int vMenuShader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vMenuShader, 1, &menuVertexShaderSource, NULL);
+    glCompileShader(vMenuShader);
+    unsigned int fMenuShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fMenuShader, 1, &menuFragmentShaderSource, NULL);
+    glCompileShader(fMenuShader);
+    menuShaderProgram = glCreateProgram();
+    glAttachShader(menuShaderProgram, vMenuShader);
+    glAttachShader(menuShaderProgram, fMenuShader);
+    glLinkProgram(menuShaderProgram);
 
     // VAO del Jugador
     float vertices[] = {
@@ -201,15 +265,44 @@ bool Game::Init() {
 
 void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (instance && action == GLFW_PRESS) {
-        if (key == GLFW_KEY_ESCAPE) glfwSetWindowShouldClose(window, true);
-        if (key == GLFW_KEY_R && instance->player.HasCrashed()) {
-            instance->ResetRun();
-            return;
+        if (key == GLFW_KEY_ESCAPE) {
+            if (instance->currentState == GameState::PLAYING) {
+                instance->currentState = GameState::MENU;
+                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            } else {
+                glfwSetWindowShouldClose(window, true);
+            }
         }
+        
+        if (instance->currentState == GameState::PLAYING) {
+            if (key == GLFW_KEY_R && instance->player.HasCrashed()) {
+                instance->ResetRun();
+                return;
+            }
 
-        if (key == GLFW_KEY_A || key == GLFW_KEY_LEFT) instance->player.MoveLeft();
-        if (key == GLFW_KEY_D || key == GLFW_KEY_RIGHT) instance->player.MoveRight();
-        if (key == GLFW_KEY_SPACE || key == GLFW_KEY_W) instance->player.Jump();
+            if (key == GLFW_KEY_A || key == GLFW_KEY_LEFT) instance->player.MoveLeft();
+            if (key == GLFW_KEY_D || key == GLFW_KEY_RIGHT) instance->player.MoveRight();
+            if (key == GLFW_KEY_SPACE || key == GLFW_KEY_W) instance->player.Jump();
+        }
+    }
+}
+
+void Game::CursorPosCallback(GLFWwindow* window, double xpos, double ypos) {
+    if (instance && instance->currentState == GameState::MENU) {
+        int fbWidth, fbHeight;
+        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+        instance->menu->Update(xpos, ypos, fbWidth, fbHeight);
+    }
+}
+
+void Game::MouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
+    if (instance && instance->currentState == GameState::MENU && action == GLFW_PRESS) {
+        double xpos, ypos;
+        glfwGetCursorPos(window, &xpos, &ypos);
+        if (instance->menu->HandleClick(xpos, ypos)) {
+            // Si el clic fue en "Iniciar", cambiar estado
+            // (esto se conectará mejor cuando implementemos la función lambda real en el constructor)
+        }
     }
 }
 
@@ -238,6 +331,8 @@ float Game::GetCurrentSpeed() const {
 }
 
 void Game::Update(float deltaTime) {
+    if (currentState == GameState::MENU) return;
+
     if (player.HasCrashed()) {
         return;
     }
@@ -315,6 +410,15 @@ void Game::ResetRun() {
 
 void Game::Render() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    
+    if (currentState == GameState::MENU) {
+        int fbWidth, fbHeight;
+        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+        menu->Render(menuShaderProgram, VAO, fbWidth, fbHeight);
+        glfwSwapBuffers(window);
+        return;
+    }
+
     glUseProgram(shaderProgram);
     
     glm::vec3 pos = player.GetPosition();
@@ -365,15 +469,69 @@ void Game::Render() {
     
     // Dibuja el jugador con la posicion calculada por Player.
     if (playerModel) {
-        glm::mat4 visualModel = glm::scale(model, glm::vec3(0.6f));
+        // Pass animated time
+        float animTime = (float)glfwGetTime();
+
+        // Enable animation in shader
+        glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 1);
+
+        // Ajuste de centrado (ejemplo: offset en Y si el modelo está alto)
+        glm::mat4 visualModel = glm::translate(model, glm::vec3(0.0f, -0.5f, 0.0f)); 
+        visualModel = glm::scale(visualModel, glm::vec3(0.3f)); // Reduced size
         visualModel = glm::rotate(visualModel, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        playerModel->Draw(shaderProgram, visualModel);
+        playerModel->Draw(shaderProgram, visualModel, animTime);
     } else {
+        glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 0);
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
         glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }
+
+    // Dibuja los trenes usando el mismo cubo base del jugador.
+    glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 0); // Disable animation for trains
+    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.85f, 0.2f, 0.12f);
+    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0); // Disable texture
+    glBindVertexArray(VAO);
+    for (const Train& train : trains) {
+        const glm::vec3 objectPosition = train.GetPosition();
+        const glm::vec3 objectSize = train.GetHitboxSize();
+        glm::mat4 objectModel = glm::mat4(1.0f);
+        // Se aplica la misma escala visual de Y que usa el jugador para mantener coherencia.
+        objectModel = glm::translate(objectModel, glm::vec3(objectPosition.x * kWorldScale,
+                                                           kRenderGroundY + objectPosition.y * kHeightScale,
+                                                           (objectPosition.z - pos.z) * kWorldScale));
+        // Ajusta el cubo unitario al tamano logico del objeto pisable.
+        objectModel = glm::scale(objectModel, glm::vec3(objectSize.x * 1.25f,
+                                                        objectSize.y,
+                                                        objectSize.z * 1.25f));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(objectModel));
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+    }
+
+    // Dibuja el suelo
+    glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 0); // Disable animation for ground
+    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.3f, 0.3f, 0.3f);
+    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0); // Disable texture
+    for (const auto& segment : groundSegments) {
+        const glm::vec3 objectPosition = segment.GetPosition();
+        const glm::vec3 objectSize = segment.GetHitboxSize();
+        glm::mat4 objectModel = glm::mat4(1.0f);
+        objectModel = glm::translate(objectModel, glm::vec3(objectPosition.x * kWorldScale,
+                                                           kRenderGroundY - 0.1f, // Ligeramente debajo
+                                                           (objectPosition.z - pos.z) * kWorldScale));
+        objectModel = glm::scale(objectModel, glm::vec3(objectSize.x * 1.5f,
+                                                        objectSize.y,
+                                                        objectSize.z * 1.25f));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(objectModel));
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+    }
+
+    // Dibuja el suelo
+    glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 0); // Disable animation for ground
+    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.3f, 0.3f, 0.3f);
+    // ... (rest of code for ground)
+
 
     // Dibuja los trenes usando el mismo cubo base del jugador.
     glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.85f, 0.2f, 0.12f);

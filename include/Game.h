@@ -8,6 +8,14 @@
 #include "Train.h"
 #include "Model.h"
 
+#include <vector>
+#include <string>
+
+// Forward declaration
+class Menu;
+
+enum class GameState { MENU, PLAYING };
+
 // Clase sencilla para los segmentos del suelo
 class GroundSegment : public GameObject {
 public:
@@ -27,6 +35,8 @@ public:
     // Callback estático para GLFW
     static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
     static void FramebufferSizeCallback(GLFWwindow* window, int width, int height);
+    static void CursorPosCallback(GLFWwindow* window, double xpos, double ypos);
+    static void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 
     float GetCurrentSpeed() const;
 
@@ -40,9 +50,12 @@ private:
 
     GLFWwindow* window;
     int width, height;
+    GameState currentState;
+    Menu* menu;
     
     // Shader program y buffers
     unsigned int shaderProgram;
+    unsigned int menuShaderProgram;
     unsigned int VAO;
     Model* playerModel;
     std::vector<Train> trains;

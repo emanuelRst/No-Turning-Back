@@ -1,0 +1,48 @@
+#ifndef MENU_H
+#define MENU_H
+
+#include <vector>
+#include <string>
+#include <functional>
+#include <map>
+#include <glm/glm.hpp>
+
+// Struct for character glyph info
+struct Character {
+    unsigned int TextureID;
+    glm::ivec2   Size;
+    glm::ivec2   Bearing;
+    unsigned int Advance;
+    float u0, v0, u1, v1; // Tex coords
+};
+
+struct Button {
+    std::string text;
+    float x, y, width, height;
+    bool isHovered;
+    std::function<void()> onClick;
+};
+
+class Menu {
+public:
+    Menu();
+    ~Menu();
+    void Init(const std::string& fontPath);
+    void Update(double mouseX, double mouseY, int width, int height);
+    void Render(unsigned int shaderProgram, unsigned int quadVAO, int width, int height);
+    bool HandleClick(double mouseX, double mouseY);
+    void AddButton(const std::string& text, float x, float y, float w, float h, std::function<void()> onClick);
+
+private:
+    std::vector<Button> buttons;
+    void RenderText(const std::string& text, float x, float y, float scale, glm::vec3 color, int width, int height);
+    
+    std::map<char, Character> Characters;
+    unsigned int textVAO, textVBO;
+    unsigned int textShaderProgram;
+    unsigned int atlasTexture;
+};
+
+#endif
+
+
