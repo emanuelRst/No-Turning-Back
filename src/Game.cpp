@@ -129,15 +129,17 @@ Game::Game(int w, int h)
       playerModel(nullptr), trains(), nextTrainLane(0), gameTime(0.0f), groundScroll(0.0f),
       currentState(GameState::MENU), menu(new Menu()) {
     instance = this;
+
+    float buttonWidth = 400.0f;
     
     // Configurar botones del menú (Tamaño 600x150)
-    menu->AddButton("Iniciar Juego", 660, 200, 600, 150, [this](){ 
+    menu->AddButton("Iniciar Juego", 700 + buttonWidth, 200, 600, 150, [this](){ 
         this->currentState = GameState::PLAYING;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     });
-    menu->AddButton("Cambiar Personajes", 660, 370, 600, 150, [](){ std::cout << "Personajes\n"; });
-    menu->AddButton("Opciones", 660, 540, 600, 150, [](){ std::cout << "Opciones\n"; });
-    menu->AddButton("Creditos", 660, 710, 600, 150, [](){ std::cout << "Creditos\n"; });
+    menu->AddButton("Cambiar Personajes", 780 + buttonWidth, 370, 600, 150, [](){ std::cout << "Personajes\n"; });
+    menu->AddButton("Opciones", 660 + buttonWidth, 540, 600, 150, [](){ std::cout << "Opciones\n"; });
+    menu->AddButton("Creditos", 660 + buttonWidth, 710, 600, 150, [](){ std::cout << "Creditos\n"; });
     
     ResetRun();
 }
