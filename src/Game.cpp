@@ -1,5 +1,6 @@
 #include "Game.h"
 #include "Menu.h"
+#include "stb/stb_image.h"
 #include <algorithm>
 #include <iostream>
 #include <glm/glm.hpp>
@@ -218,8 +219,8 @@ bool Game::Init() {
     glAttachShader(menuShaderProgram, fMenuShader);
     glLinkProgram(menuShaderProgram);
 
-    // VAO del Jugador
-    float vertices[] = {
+    // VAO del Jugador (y otros objetos sin textura)
+    float verticesNoTex[] = {
         // positions          // normals
         -0.1f, -0.1f,  0.1f,  0.0f,  0.0f,  1.0f,
          0.1f, -0.1f,  0.1f,  0.0f,  0.0f,  1.0f,
@@ -241,10 +242,10 @@ bool Game::Init() {
         -0.1f, -0.1f,  0.1f, -1.0f,  0.0f,  0.0f,
         -0.1f,  0.1f,  0.1f, -1.0f,  0.0f,  0.0f,
         -0.1f,  0.1f, -0.1f, -1.0f,  0.0f,  0.0f,
-         0.1f, -0.1f, -0.1f,  1.0f,  0.0f,  0.0f,
-         0.1f,  0.1f, -0.1f,  1.0f,  0.0f,  0.0f,
-         0.1f,  0.1f,  0.1f,  1.0f,  0.0f,  0.0f,
-         0.1f, -0.1f,  0.1f,  1.0f,  0.0f,  0.0f
+         0.1f, -0.1f, -0.1f, 1.0f,  0.0f,  0.0f,
+         0.1f,  0.1f, -0.1f, 1.0f,  0.0f,  0.0f,
+         0.1f,  0.1f,  0.1f, 1.0f,  0.0f,  0.0f,
+         0.1f, -0.1f,  0.1f, 1.0f,  0.0f,  0.0f
     };
     unsigned int indices[] = {
         0, 1, 2, 2, 3, 0,
@@ -260,15 +261,82 @@ bool Game::Init() {
     glGenBuffers(1, &EBO);
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(verticesNoTex), verticesNoTex, GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
     
     // Position attribute
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+    // Normal attribute
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
+
+    // VAO del Suelo (con textura)
+    float verticesTex[] = {
+        // positions          // normals            // texCoords
+        -0.1f, -0.1f,  0.1f,  0.0f,  0.0f,  1.0f,   0.0f, 0.0f,
+         0.1f, -0.1f,  0.1f,  0.0f,  0.0f,  1.0f,   1.0f, 0.0f,
+         0.1f,  0.1f,  0.1f,  0.0f,  0.0f,  1.0f,   1.0f, 1.0f,
+        -0.1f,  0.1f,  0.1f,  0.0f,  0.0f,  1.0f,   0.0f, 1.0f,
+        -0.1f, -0.1f, -0.1f,  0.0f,  0.0f, -1.0f,   0.0f, 0.0f,
+        -0.1f,  0.1f, -0.1f,  0.0f,  0.0f, -1.0f,   0.0f, 1.0f,
+         0.1f,  0.1f, -0.1f,  0.0f,  0.0f, -1.0f,   1.0f, 1.0f,
+         0.1f, -0.1f, -0.1f,  0.0f,  0.0f, -1.0f,   1.0f, 0.0f,
+        -0.1f,  0.1f, -0.1f,  0.0f,  1.0f,  0.0f,   0.0f, 0.0f,
+        -0.1f,  0.1f,  0.1f,  0.0f,  1.0f,  0.0f,   0.0f, 1.0f,
+         0.1f,  0.1f,  0.1f,  0.0f,  1.0f,  0.0f,   1.0f, 1.0f,
+         0.1f,  0.1f, -0.1f,  0.0f,  1.0f,  0.0f,   1.0f, 0.0f,
+        -0.1f, -0.1f, -0.1f,  0.0f, -1.0f,  0.0f,   0.0f, 0.0f,
+         0.1f, -0.1f, -0.1f,  0.0f, -1.0f,  0.0f,   1.0f, 0.0f,
+         0.1f, -0.1f,  0.1f,  0.0f, -1.0f,  0.0f,   1.0f, 1.0f,
+        -0.1f, -0.1f,  0.1f,  0.0f, -1.0f,  0.0f,   0.0f, 1.0f,
+        -0.1f, -0.1f, -0.1f, -1.0f,  0.0f,  0.0f,   0.0f, 0.0f,
+        -0.1f, -0.1f,  0.1f, -1.0f,  0.0f,  0.0f,   1.0f, 0.0f,
+        -0.1f,  0.1f,  0.1f, -1.0f,  0.0f,  0.0f,   1.0f, 1.0f,
+        -0.1f,  0.1f, -0.1f, -1.0f,  0.0f,  0.0f,   0.0f, 1.0f,
+         0.1f, -0.1f, -0.1f, 1.0f,  0.0f,  0.0f,   0.0f, 0.0f,
+         0.1f,  0.1f, -0.1f, 1.0f,  0.0f,  0.0f,   0.0f, 1.0f,
+         0.1f,  0.1f,  0.1f, 1.0f,  0.0f,  0.0f,   1.0f, 1.0f,
+         0.1f, -0.1f,  0.1f, 1.0f,  0.0f,  0.0f,   1.0f, 0.0f
+    };
+    glGenVertexArrays(1, &groundVAO);
+    glGenBuffers(1, &groundVBO);
+    glGenBuffers(1, &groundEBO);
+    glBindVertexArray(groundVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, groundVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(verticesTex), verticesTex, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, groundEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    
+    // Position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    // Normal attribute
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    // TexCoord attribute
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+
+
+    // Cargar textura del suelo
+    glGenTextures(1, &groundTexture);
+    glBindTexture(GL_TEXTURE_2D, groundTexture);
+    int width, height, nrChannels;
+    unsigned char *data = stbi_load("assets/textures/carretera.jpg", &width, &height, &nrChannels, 0);
+    if (data) {
+        GLenum format = (nrChannels == 4) ? GL_RGBA : GL_RGB;
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        stbi_image_free(data);
+    } else {
+        std::cerr << "Failed to load texture: assets/textures/carretera.jpg" << std::endl;
+    }
 
     return true;
 }
@@ -512,9 +580,12 @@ void Game::Render() {
     }
 
     // --- Suelo con scroll continuo ---
-    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.3f, 0.3f, 0.3f);
-    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
-    glBindVertexArray(VAO);
+    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 1.0f, 1.0f); // Blanco para que la textura se vea bien
+    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 1);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, groundTexture);
+    glUniform1i(glGetUniformLocation(shaderProgram, "texture_diffuse1"), 0);
+    glBindVertexArray(groundVAO);
     float scrollZ = groundScroll - (int)(groundScroll / kGroundSegmentLength) * kGroundSegmentLength;
     for (const auto& segment : groundSegments) {
         const glm::vec3 sp = segment.GetPosition();

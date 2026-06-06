@@ -66,6 +66,9 @@ private:
     float groundScroll;
 
     // Instancia estática para acceder desde el callback
+    unsigned int groundVAO, groundVBO, groundEBO;
+    unsigned int groundTexture;
+
     static Game* instance;
 public:
     Player player; // Público para acceso desde callback estático (temporal)
