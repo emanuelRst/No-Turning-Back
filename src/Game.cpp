@@ -128,13 +128,14 @@ constexpr int kNumGroundSegments = 5;
 Game::Game(int w, int h)
     : window(nullptr), width(w), height(h), shaderProgram(0), VAO(0),
       playerModel(nullptr), trains(), nextTrainLane(0), gameTime(0.0f), groundScroll(0.0f),
-      currentState(GameState::MENU), menu(new Menu()) {
+      currentState(GameState::MENU), menu(new Menu()), gameOverMenu(new Menu()) {
     instance = this;
 
     float buttonWidth = 250.0f;
     
     // Configurar botones del menú (Tamaño 600x150)
     menu->AddButton("Iniciar Juego", 660 + buttonWidth, 200, 600, 150, [this](){ 
+        this->ResetRun(); // Reiniciar al iniciar
         this->currentState = GameState::PLAYING;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     }, "assets/audio/Menu/MenuEfecto.wav");
@@ -142,12 +143,26 @@ Game::Game(int w, int h)
     menu->AddButton("Opciones", 660 + buttonWidth, 540, 600, 150, [](){ std::cout << "Opciones\n"; }, "assets/audio/Menu/MenuEfecto.wav");
     menu->AddButton("Creditos", 660 + buttonWidth, 710, 600, 150, [](){ std::cout << "Creditos\n"; }, "assets/audio/Menu/MenuEfecto.wav");
     
+    // Configurar botones de Game Over (uno al lado del otro, más abajo)
+    float gameOverY = 700.0f; // Más abajo
+    float btnGap = 400.0f;    // Separación horizontal
+    gameOverMenu->AddButton("Reiniciar", (float)width / 2.0f + btnGap / 2.0f, gameOverY, 300, 100, [this](){
+        this->ResetRun();
+        this->currentState = GameState::PLAYING;
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    }, "assets/audio/Menu/MenuEfecto.wav");
+    gameOverMenu->AddButton("Regresar al menu", (float)width / 2.0f + btnGap + 400.0f, gameOverY, 300, 100, [this](){
+        this->currentState = GameState::MENU;
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }, "assets/audio/Menu/MenuEfecto.wav");
+
     ResetRun();
 }
 
 Game::~Game() {
     delete playerModel;
     delete menu;
+    delete gameOverMenu;
     glfwTerminate();
 }
 
@@ -164,6 +179,7 @@ bool Game::Init() {
     
     // Inicializar menú
     menu->Init("assets/fonts/stocky.ttf");
+    gameOverMenu->Init("assets/fonts/stocky.ttf");
 
     // Cargar modelo del jugador
     playerModel = new Model("assets/models/run_forrest/scene.gltf");
@@ -320,23 +336,23 @@ bool Game::Init() {
     glEnableVertexAttribArray(2);
 
 
-    // Cargar textura del suelo
-    glGenTextures(1, &groundTexture);
-    glBindTexture(GL_TEXTURE_2D, groundTexture);
-    int width, height, nrChannels;
-    unsigned char *data = stbi_load("assets/textures/carretera.jpg", &width, &height, &nrChannels, 0);
-    if (data) {
-        GLenum format = (nrChannels == 4) ? GL_RGBA : GL_RGB;
-        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        stbi_image_free(data);
-    } else {
-        std::cerr << "Failed to load texture: assets/textures/carretera.jpg" << std::endl;
-    }
+    // // Cargar textura del suelo
+    // glGenTextures(1, &groundTexture);
+    // glBindTexture(GL_TEXTURE_2D, groundTexture);
+    // int width, height, nrChannels;
+    // unsigned char *data = stbi_load("assets/textures/carretera.jpg", &width, &height, &nrChannels, 0);
+    // if (data) {
+    //     GLenum format = (nrChannels == 4) ? GL_RGBA : GL_RGB;
+    //     glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+    //     glGenerateMipmap(GL_TEXTURE_2D);
+    //     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    //     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    //     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    //     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    //     stbi_image_free(data);
+    // } else {
+    //     std::cerr << "Failed to load texture: assets/textures/carretera.jpg" << std::endl;
+    // }
 
     return true;
 }
@@ -354,6 +370,8 @@ void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, in
         
         if (instance->currentState == GameState::MENU) {
             instance->menu->HandleKeyEvent(key);
+        } else if (instance->currentState == GameState::GAME_OVER) {
+            instance->gameOverMenu->HandleKeyEvent(key);
         } else if (instance->currentState == GameState::PLAYING) {
             if (key == GLFW_KEY_R && instance->player.HasCrashed()) {
                 instance->ResetRun();
@@ -368,18 +386,20 @@ void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, in
 }
 
 void Game::CursorPosCallback(GLFWwindow* window, double xpos, double ypos) {
-    if (instance && instance->currentState == GameState::MENU) {
-        instance->menu->SetMousePos(xpos, ypos);
+    if (instance && (instance->currentState == GameState::MENU || instance->currentState == GameState::GAME_OVER)) {
+        if (instance->currentState == GameState::MENU) instance->menu->SetMousePos(xpos, ypos);
+        else instance->gameOverMenu->SetMousePos(xpos, ypos);
     }
 }
 
 void Game::MouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
-    if (instance && instance->currentState == GameState::MENU && action == GLFW_PRESS) {
+    if (instance && (instance->currentState == GameState::MENU || instance->currentState == GameState::GAME_OVER) && action == GLFW_PRESS) {
         double xpos, ypos;
         glfwGetCursorPos(window, &xpos, &ypos);
-        if (instance->menu->HandleClick(xpos, ypos)) {
-            // Si el clic fue en "Iniciar", cambiar estado
-            // (esto se conectará mejor cuando implementemos la función lambda real en el constructor)
+        if (instance->currentState == GameState::MENU) {
+            instance->menu->HandleClick(xpos, ypos);
+        } else {
+            instance->gameOverMenu->HandleClick(xpos, ypos);
         }
     }
 }
@@ -419,6 +439,13 @@ void Game::Update(float deltaTime) {
     }
 
     if (player.HasCrashed()) {
+        if (currentState != GameState::GAME_OVER) {
+            currentState = GameState::GAME_OVER;
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        }
+        int fbWidth, fbHeight;
+        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+        gameOverMenu->Update(deltaTime, fbWidth, fbHeight);
         return;
     }
 
@@ -505,6 +532,20 @@ void Game::Render() {
         return;
     }
 
+    if (currentState == GameState::GAME_OVER) {
+        // Renderizar el juego de fondo (opcional, podrías renderizar el último frame)
+        // Por ahora solo renderizamos el menú de game over
+        int fbWidth, fbHeight;
+        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+        gameOverMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight);
+        
+        // Dibujar texto "Perdiste"
+        gameOverMenu->RenderText("Perdiste", fbWidth / 2.0f, fbHeight / 2.0f - 100.0f, 1.5f, glm::vec3(1.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+        
+        glfwSwapBuffers(window);
+        return;
+    }
+
     glUseProgram(shaderProgram);
 
     glm::vec3 pos = player.GetPosition();
@@ -587,9 +628,9 @@ void Game::Render() {
     // --- Suelo con scroll continuo ---
     glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.5f, 0.5f, 0.5f); // Gris para el camino sin textura
     glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, groundTexture);
-    glUniform1i(glGetUniformLocation(shaderProgram, "texture_diffuse1"), 0);
+    // glActiveTexture(GL_TEXTURE0);
+    // glBindTexture(GL_TEXTURE_2D, groundTexture);
+    // glUniform1i(glGetUniformLocation(shaderProgram, "texture_diffuse1"), 0);
     glBindVertexArray(groundVAO);
     float scrollZ = groundScroll - (int)(groundScroll / kGroundSegmentLength) * kGroundSegmentLength;
     for (const auto& segment : groundSegments) {
