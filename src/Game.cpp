@@ -137,10 +137,10 @@ Game::Game(int w, int h)
     menu->AddButton("Iniciar Juego", 660 + buttonWidth, 200, 600, 150, [this](){ 
         this->currentState = GameState::PLAYING;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    }, "assets/audio/Menu/MenuEscala.mp3");
-    menu->AddButton("Cambiar Personajes", 680 + buttonWidth, 370, 600, 150, [](){ std::cout << "Personajes\n"; }, "assets/audio/Menu/MenuEscala.mp3");
-    menu->AddButton("Opciones", 660 + buttonWidth, 540, 600, 150, [](){ std::cout << "Opciones\n"; }, "assets/audio/Menu/MenuEscala.mp3");
-    menu->AddButton("Creditos", 660 + buttonWidth, 710, 600, 150, [](){ std::cout << "Creditos\n"; }, "assets/audio/Menu/MenuEscala.mp3");
+    }, "assets/audio/Menu/MenuEfecto.wav");
+    menu->AddButton("Cambiar Personajes", 680 + buttonWidth, 370, 600, 150, [](){ std::cout << "Personajes\n"; }, "assets/audio/Menu/MenuEfecto.wav");
+    menu->AddButton("Opciones", 660 + buttonWidth, 540, 600, 150, [](){ std::cout << "Opciones\n"; }, "assets/audio/Menu/MenuEfecto.wav");
+    menu->AddButton("Creditos", 660 + buttonWidth, 710, 600, 150, [](){ std::cout << "Creditos\n"; }, "assets/audio/Menu/MenuEfecto.wav");
     
     ResetRun();
 }
@@ -585,8 +585,8 @@ void Game::Render() {
     }
 
     // --- Suelo con scroll continuo ---
-    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 1.0f, 1.0f); // Blanco para que la textura se vea bien
-    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 1);
+    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.5f, 0.5f, 0.5f); // Gris para el camino sin textura
+    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, groundTexture);
     glUniform1i(glGetUniformLocation(shaderProgram, "texture_diffuse1"), 0);
