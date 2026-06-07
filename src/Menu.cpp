@@ -43,12 +43,28 @@ Menu::~Menu() {
 }
 
 float Menu::GetTextWidth(const std::string& text, float scale) {
-    float width = 0;
+    float width = 0.0f;
     for (char c : text) {
         if (Characters.find(c) != Characters.end())
             width += Characters[c].Advance * scale;
     }
     return width;
+}
+
+void Menu::GetTextVerticalBounds(const std::string& text, float scale, float& minBearingY, float& maxBearingY) {
+    minBearingY = 10000.0f;
+    maxBearingY = -10000.0f;
+
+    for (char c : text) {
+        if (Characters.find(c) != Characters.end()) {
+            Character ch = Characters[c];
+            float top = -ch.Bearing.y * scale;
+            float bottom = (ch.Size.y - ch.Bearing.y) * scale;
+            
+            if (top < minBearingY) minBearingY = top;
+            if (bottom > maxBearingY) maxBearingY = bottom;
+        }
+    }
 }
 
 void Menu::Init(const std::string& fontPath) {
@@ -112,17 +128,33 @@ void Menu::Init(const std::string& fontPath) {
 
     // Actualizar dimensiones de botones basados en el texto
     for (auto& button : buttons) {
-        button.width = GetTextWidth(button.text, 1.0f);
-        button.height = 64.0f; // Altura aproximada del texto
-        button.x -= button.width / 3.0f; // Ajustar x para centrar
-        button.y -= button.height / 2.0f; // Ajustar y para centrar
+        // Solo actualizar si no se especificaron dimensiones en AddButton, 
+        // pero actualmente AddButton siempre recibe valores.
+        // Vamos a mantener los valores de AddButton.
+        if (button.width == 0.0f) button.width = GetTextWidth(button.text, 1.0f);
+        if (button.height == 0.0f) button.height = 64.0f; 
     }
 }
 
-void Menu::Update(double mouseX, double mouseY, int width, int height) {
+void Menu::SetMousePos(double x, double y) {
+    mouseX = x;
+    mouseY = y;
+}
+
+void Menu::Update(float deltaTime, int width, int height) {
+    float smoothSpeed = 10.0f; // Velocidad de suavizado
+
     for (auto& button : buttons) {
-        button.isHovered = (mouseX >= button.x && mouseX <= button.x + button.width &&
-                            mouseY >= button.y && mouseY <= button.y + button.height);
+        float adjustedButtonY = button.y;
+        
+        float halfW = button.width / 2.0f;
+        float halfH = button.height / 2.0f;
+        
+        button.isHovered = (mouseX >= button.x - halfW && mouseX <= button.x + halfW &&
+                            mouseY >= adjustedButtonY - halfH && mouseY <= adjustedButtonY + halfH);
+        
+        float targetScale = button.isHovered ? 1.2f : 1.0f;
+        button.currentScale += (targetScale - button.currentScale) * smoothSpeed * deltaTime;
     }
 }
 
@@ -132,8 +164,10 @@ void Menu::Render(unsigned int shaderProgram, unsigned int quadVAO, int width, i
     // Dibujar texto directamente
     for (const auto& button : buttons) {
         glm::vec3 color = button.isHovered ? glm::vec3(0.0f, 0.5f, 0.8f) : glm::vec3(1.0f, 1.0f, 1.0f);
+        // Usar la escala suavizada
+        float scale = button.currentScale;
         // Usar button.x y button.y como centro
-        RenderText(button.text, button.x, button.y, 1.0f, color, width, height);
+        RenderText(button.text, button.x, button.y, scale, color, width, height);
     }
     
     glEnable(GL_DEPTH_TEST);
@@ -159,8 +193,12 @@ void Menu::RenderText(const std::string& text, float x, float y, float scale, gl
             textWidth += Characters[c].Advance * scale;
     }
     
+    float minBearingY, maxBearingY;
+    GetTextVerticalBounds(text, scale, minBearingY, maxBearingY);
+    float textCenterY = (minBearingY + maxBearingY) / 2.0f;
+    
     float cursorX = x - textWidth / 2.0f;
-    float cursorY = y + 20.0f; 
+    float cursorY = y - textCenterY; 
     
     for (char c : text) {
         if (Characters.find(c) == Characters.end()) continue;
@@ -197,8 +235,13 @@ void Menu::RenderText(const std::string& text, float x, float y, float scale, gl
 
 bool Menu::HandleClick(double mouseX, double mouseY) {
     for (auto& button : buttons) {
-        if (mouseX >= button.x && mouseX <= button.x + button.width &&
-            mouseY >= button.y && mouseY <= button.y + button.height) {
+        float adjustedButtonY = button.y;
+        
+        float halfW = button.width / 2.0f;
+        float halfH = button.height / 2.0f;
+        
+        if (mouseX >= button.x - halfW && mouseX <= button.x + halfW &&
+            mouseY >= adjustedButtonY - halfH && mouseY <= adjustedButtonY + halfH) {
             if (button.onClick) {
                 button.onClick();
                 return true;
@@ -209,6 +252,6 @@ bool Menu::HandleClick(double mouseX, double mouseY) {
 }
 
 void Menu::AddButton(const std::string& text, float x, float y, float w, float h, std::function<void()> onClick) {
-    buttons.push_back({text, x, y, w, h, false, onClick});
-
+    buttons.push_back({text, x, y, w, h, false, 1.0f, onClick});
 }
+

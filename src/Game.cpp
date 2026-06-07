@@ -131,14 +131,14 @@ Game::Game(int w, int h)
       currentState(GameState::MENU), menu(new Menu()) {
     instance = this;
 
-    float buttonWidth = 400.0f;
+    float buttonWidth = 250.0f;
     
     // Configurar botones del menú (Tamaño 600x150)
-    menu->AddButton("Iniciar Juego", 700 + buttonWidth, 200, 600, 150, [this](){ 
+    menu->AddButton("Iniciar Juego", 660 + buttonWidth, 200, 600, 150, [this](){ 
         this->currentState = GameState::PLAYING;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     });
-    menu->AddButton("Cambiar Personajes", 780 + buttonWidth, 370, 600, 150, [](){ std::cout << "Personajes\n"; });
+    menu->AddButton("Cambiar Personajes", 680 + buttonWidth, 370, 600, 150, [](){ std::cout << "Personajes\n"; });
     menu->AddButton("Opciones", 660 + buttonWidth, 540, 600, 150, [](){ std::cout << "Opciones\n"; });
     menu->AddButton("Creditos", 660 + buttonWidth, 710, 600, 150, [](){ std::cout << "Creditos\n"; });
     
@@ -367,9 +367,7 @@ void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, in
 
 void Game::CursorPosCallback(GLFWwindow* window, double xpos, double ypos) {
     if (instance && instance->currentState == GameState::MENU) {
-        int fbWidth, fbHeight;
-        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
-        instance->menu->Update(xpos, ypos, fbWidth, fbHeight);
+        instance->menu->SetMousePos(xpos, ypos);
     }
 }
 
@@ -411,7 +409,12 @@ float Game::GetCurrentSpeed() const {
 }
 
 void Game::Update(float deltaTime) {
-    if (currentState == GameState::MENU) return;
+    if (currentState == GameState::MENU) {
+        int fbWidth, fbHeight;
+        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+        menu->Update(deltaTime, fbWidth, fbHeight);
+        return;
+    }
 
     if (player.HasCrashed()) {
         return;

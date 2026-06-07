@@ -20,6 +20,7 @@ struct Button {
     std::string text;
     float x, y, width, height;
     bool isHovered;
+    float currentScale = 1.0f;
     std::function<void()> onClick;
 };
 
@@ -28,15 +29,18 @@ public:
     Menu();
     ~Menu();
     void Init(const std::string& fontPath);
-    void Update(double mouseX, double mouseY, int width, int height);
+    void SetMousePos(double x, double y);
+    void Update(float deltaTime, int width, int height);
     void Render(unsigned int shaderProgram, unsigned int quadVAO, int width, int height);
     void RenderText(const std::string& text, float x, float y, float scale, glm::vec3 color, int width, int height);
     bool HandleClick(double mouseX, double mouseY);
     void AddButton(const std::string& text, float x, float y, float w, float h, std::function<void()> onClick);
     float GetTextWidth(const std::string& text, float scale);
+    void GetTextVerticalBounds(const std::string& text, float scale, float& minBearingY, float& maxBearingY);
 
 private:
     std::vector<Button> buttons;
+    double mouseX = 0.0, mouseY = 0.0;
     
     std::map<char, Character> Characters;
     unsigned int textVAO, textVBO;
