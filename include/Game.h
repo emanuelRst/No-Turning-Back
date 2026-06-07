@@ -43,7 +43,6 @@ public:
 private:
     void Update(float deltaTime);
     void Render();
-    void RenderScene(); // Helper
     void UpdateTrains(float deltaTime, float currentSpeed);
     void UpdateGround(float deltaTime, float currentSpeed);
     void ResetTrain(Train& train);
@@ -57,10 +56,7 @@ private:
     // Shader program y buffers
     unsigned int shaderProgram;
     unsigned int menuShaderProgram;
-    unsigned int blurShaderProgram; // Nuevo shader
     unsigned int VAO;
-    unsigned int framebuffer, textureColorbuffer, rbo; // FBO
-    unsigned int quadVAO, quadVBO; // Full-screen quad
     Model* playerModel;
     std::vector<Train> trains;
     std::vector<GroundSegment> groundSegments;

@@ -106,39 +106,6 @@ void main() {
 }
 )";
 
-const char* blurVertexShaderSource = R"(
-#version 330 core
-layout (location = 0) in vec2 aPos;
-layout (location = 1) in vec2 aTexCoords;
-out vec2 TexCoords;
-void main() {
-    gl_Position = vec4(aPos.x, aPos.y, 0.0, 1.0);
-    TexCoords = aTexCoords;
-}
-)";
-
-const char* blurFragmentShaderSource = R"(
-#version 330 core
-out vec4 FragColor;
-in vec2 TexCoords;
-uniform sampler2D image;
-uniform float blurSize;
-
-void main() {
-    vec4 color = vec4(0.0);
-    float total = 0.0;
-    
-    // Simple 3x3 box blur
-    for (float x = -1.0; x <= 1.0; x += 1.0) {
-        for (float y = -1.0; y <= 1.0; y += 1.0) {
-            color += texture(image, TexCoords + vec2(x, y) * blurSize);
-            total += 1.0;
-        }
-    }
-    FragColor = color / total;
-}
-)";
-
 
 
 namespace {
@@ -252,51 +219,7 @@ bool Game::Init() {
     glAttachShader(menuShaderProgram, fMenuShader);
     glLinkProgram(menuShaderProgram);
 
-    // Compilar Blur Shader
-    unsigned int vBlurShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vBlurShader, 1, &blurVertexShaderSource, NULL);
-    glCompileShader(vBlurShader);
-    unsigned int fBlurShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fBlurShader, 1, &blurFragmentShaderSource, NULL);
-    glCompileShader(fBlurShader);
-    blurShaderProgram = glCreateProgram();
-    glAttachShader(blurShaderProgram, vBlurShader);
-    glAttachShader(blurShaderProgram, fBlurShader);
-    glLinkProgram(blurShaderProgram);
-
-    // FBO Setup
-    glGenFramebuffers(1, &framebuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-    glGenTextures(1, &textureColorbuffer);
-    glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorbuffer, 0);
-    glGenRenderbuffers(1, &rbo);
-    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    // Quad setup
-    float quadVertices[] = {
-        -1.0f,  1.0f,  0.0f, 1.0f,
-        -1.0f, -1.0f,  0.0f, 0.0f,
-         1.0f, -1.0f,  1.0f, 0.0f,
-        -1.0f,  1.0f,  0.0f, 1.0f,
-         1.0f, -1.0f,  1.0f, 0.0f,
-         1.0f,  1.0f,  1.0f, 1.0f
-    };
-    glGenVertexArrays(1, &quadVAO);
-    glGenBuffers(1, &quadVBO);
-    glBindVertexArray(quadVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    // VAO del Jugador (y otros objetos sin textura)
     float verticesNoTex[] = {
         // positions          // normals
         -0.1f, -0.1f,  0.1f,  0.0f,  0.0f,  1.0f,
@@ -571,7 +494,17 @@ void Game::ResetRun() {
     }
 }
 
-void Game::RenderScene() {
+void Game::Render() {
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    if (currentState == GameState::MENU) {
+        int fbWidth, fbHeight;
+        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+        menu->Render(menuShaderProgram, VAO, fbWidth, fbHeight);
+        glfwSwapBuffers(window);
+        return;
+    }
+
     glUseProgram(shaderProgram);
 
     glm::vec3 pos = player.GetPosition();
@@ -603,6 +536,11 @@ void Game::RenderScene() {
     // --- Jugador ---
     if (playerModel) {
         glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 1);
+        // Para que los pies del modelo caigan en world y = pos.y, hay que
+        // colocar el origen local del asset de forma que su punto más bajo
+        // (AABB.min.y en espacio del asset) quede en pos.y tras la escala.
+        //   model_feet_y = translateY + (AABB.min.y * kPlayerScale)
+        //   pos.y = model_feet_y  =>  translateY = pos.y - AABB.min.y * scale
         const ModelAABB& modelAABB = playerModel->GetAABB();
         const float translateY = pos.y - modelAABB.min.y * Player::kPlayerScale;
         glm::mat4 visualModel = glm::translate(glm::mat4(1.0f),
@@ -617,6 +555,7 @@ void Game::RenderScene() {
         playerModel->Draw(shaderProgram, visualModel, (float)glfwGetTime());
     } else {
         glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 0);
+        // Anclar el cubo a los pies (mismo criterio que la hitbox y el modelo).
         glm::mat4 playerCube = glm::translate(glm::mat4(1.0f),
                                               glm::vec3(pos.x, pos.y + playerSize.y * 0.5f, pos.z));
         playerCube = glm::scale(playerCube, playerSize * kCubeScaleFactor);
@@ -646,7 +585,7 @@ void Game::RenderScene() {
     }
 
     // --- Suelo con scroll continuo ---
-    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 1.0f, 1.0f);
+    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 1.0f, 1.0f); // Blanco para que la textura se vea bien
     glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 1);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, groundTexture);
@@ -656,42 +595,11 @@ void Game::RenderScene() {
     for (const auto& segment : groundSegments) {
         const glm::vec3 sp = segment.GetPosition();
         const glm::vec3 ss = segment.GetHitboxSize();
+        // La cara superior del segmento queda en y=0 restando media altura.
         glm::mat4 segModel = glm::translate(glm::mat4(1.0f),
                                             glm::vec3(sp.x, sp.y - ss.y * 0.5f, sp.z + scrollZ));
         segModel = glm::scale(segModel, ss * kCubeScaleFactor);
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(segModel));
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }
-}
-
-void Game::Render() {
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-    glEnable(GL_DEPTH_TEST);
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    RenderScene();
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glDisable(GL_DEPTH_TEST);
-    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    if (currentState == GameState::MENU) {
-        glUseProgram(blurShaderProgram);
-        glUniform1f(glGetUniformLocation(blurShaderProgram, "blurSize"), 0.005f);
-        glBindVertexArray(quadVAO);
-        glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        
-        int fbWidth, fbHeight;
-        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
-        menu->Render(menuShaderProgram, VAO, fbWidth, fbHeight);
-    } else {
-        glUseProgram(menuShaderProgram); 
-        glBindVertexArray(quadVAO);
-        glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-    }
-    glfwSwapBuffers(window);
 }
