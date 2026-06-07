@@ -153,6 +153,13 @@ void Menu::Update(float deltaTime, int width, int height) {
         button.isHovered = (mouseX >= button.x - halfW && mouseX <= button.x + halfW &&
                             mouseY >= adjustedButtonY - halfH && mouseY <= adjustedButtonY + halfH);
         
+        if (button.isHovered && !button.wasHovered) {
+            if (button.hoverSoundBuffer != 0) {
+                audioManager.PlaySound(button.hoverSoundBuffer);
+            }
+        }
+        button.wasHovered = button.isHovered;
+        
         float targetScale = button.isHovered ? 1.2f : 1.0f;
         button.currentScale += (targetScale - button.currentScale) * smoothSpeed * deltaTime;
     }
@@ -251,7 +258,11 @@ bool Menu::HandleClick(double mouseX, double mouseY) {
     return false;
 }
 
-void Menu::AddButton(const std::string& text, float x, float y, float w, float h, std::function<void()> onClick) {
-    buttons.push_back({text, x, y, w, h, false, 1.0f, onClick});
+void Menu::AddButton(const std::string& text, float x, float y, float w, float h, std::function<void()> onClick, const std::string& audioPath) {
+    ALuint buffer = 0;
+    if (!audioPath.empty()) {
+        audioManager.LoadSound(audioPath, buffer);
+    }
+    buttons.push_back({text, x, y, w, h, false, false, 1.0f, onClick, buffer});
 }
 

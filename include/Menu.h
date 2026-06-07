@@ -6,6 +6,8 @@
 #include <functional>
 #include <map>
 #include <glm/glm.hpp>
+#include "AudioManager.h"
+#include <AL/al.h>
 
 // Struct for character glyph info
 struct Character {
@@ -20,8 +22,10 @@ struct Button {
     std::string text;
     float x, y, width, height;
     bool isHovered;
+    bool wasHovered = false;
     float currentScale = 1.0f;
     std::function<void()> onClick;
+    ALuint hoverSoundBuffer = 0;
 };
 
 class Menu {
@@ -34,13 +38,15 @@ public:
     void Render(unsigned int shaderProgram, unsigned int quadVAO, int width, int height);
     void RenderText(const std::string& text, float x, float y, float scale, glm::vec3 color, int width, int height);
     bool HandleClick(double mouseX, double mouseY);
-    void AddButton(const std::string& text, float x, float y, float w, float h, std::function<void()> onClick);
+    void AddButton(const std::string& text, float x, float y, float w, float h, std::function<void()> onClick, const std::string& audioPath = "");
     float GetTextWidth(const std::string& text, float scale);
     void GetTextVerticalBounds(const std::string& text, float scale, float& minBearingY, float& maxBearingY);
 
 private:
     std::vector<Button> buttons;
     double mouseX = 0.0, mouseY = 0.0;
+    
+    AudioManager audioManager;
     
     std::map<char, Character> Characters;
     unsigned int textVAO, textVBO;

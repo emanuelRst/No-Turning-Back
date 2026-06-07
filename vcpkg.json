@@ -5,6 +5,8 @@
     "glfw3",
     "glm",
     "assimp",
-    "nlohmann-json"
+    "nlohmann-json",
+    "openal-soft",
+    "libsndfile"
   ]
 }

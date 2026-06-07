@@ -137,10 +137,10 @@ Game::Game(int w, int h)
     menu->AddButton("Iniciar Juego", 660 + buttonWidth, 200, 600, 150, [this](){ 
         this->currentState = GameState::PLAYING;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    });
-    menu->AddButton("Cambiar Personajes", 680 + buttonWidth, 370, 600, 150, [](){ std::cout << "Personajes\n"; });
-    menu->AddButton("Opciones", 660 + buttonWidth, 540, 600, 150, [](){ std::cout << "Opciones\n"; });
-    menu->AddButton("Creditos", 660 + buttonWidth, 710, 600, 150, [](){ std::cout << "Creditos\n"; });
+    }, "assets/audio/Menu/MenuEscala.mp3");
+    menu->AddButton("Cambiar Personajes", 680 + buttonWidth, 370, 600, 150, [](){ std::cout << "Personajes\n"; }, "assets/audio/Menu/MenuEscala.mp3");
+    menu->AddButton("Opciones", 660 + buttonWidth, 540, 600, 150, [](){ std::cout << "Opciones\n"; }, "assets/audio/Menu/MenuEscala.mp3");
+    menu->AddButton("Creditos", 660 + buttonWidth, 710, 600, 150, [](){ std::cout << "Creditos\n"; }, "assets/audio/Menu/MenuEscala.mp3");
     
     ResetRun();
 }
