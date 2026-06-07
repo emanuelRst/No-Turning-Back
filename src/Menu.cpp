@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <GLFW/glfw3.h>
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "../vendor/stb/stb_truetype.h"
@@ -144,14 +145,22 @@ void Menu::SetMousePos(double x, double y) {
 void Menu::Update(float deltaTime, int width, int height) {
     float smoothSpeed = 10.0f; // Velocidad de suavizado
 
-    for (auto& button : buttons) {
+    for (int i = 0; i < buttons.size(); ++i) {
+        auto& button = buttons[i];
         float adjustedButtonY = button.y;
         
         float halfW = button.width / 2.0f;
         float halfH = button.height / 2.0f;
         
-        button.isHovered = (mouseX >= button.x - halfW && mouseX <= button.x + halfW &&
-                            mouseY >= adjustedButtonY - halfH && mouseY <= adjustedButtonY + halfH);
+        bool isCurrentlyMouseHovered = (mouseX >= button.x - halfW && mouseX <= button.x + halfW &&
+                                       mouseY >= adjustedButtonY - halfH && mouseY <= adjustedButtonY + halfH);
+        
+        if (isCurrentlyMouseHovered) {
+            button.isHovered = true;
+            selectedButtonIndex = i; // Mouse overrides keyboard
+        } else {
+            button.isHovered = (i == selectedButtonIndex);
+        }
         
         if (button.isHovered && !button.wasHovered) {
             if (button.hoverSoundBuffer != 0) {
@@ -162,6 +171,24 @@ void Menu::Update(float deltaTime, int width, int height) {
         
         float targetScale = button.isHovered ? 1.2f : 1.0f;
         button.currentScale += (targetScale - button.currentScale) * smoothSpeed * deltaTime;
+    }
+}
+
+void Menu::HandleKeyEvent(int key) {
+    if (buttons.empty()) return;
+
+    if (key == GLFW_KEY_UP) {
+        selectedButtonIndex--;
+        if (selectedButtonIndex < 0) selectedButtonIndex = (int)buttons.size() - 1;
+    } else if (key == GLFW_KEY_DOWN) {
+        selectedButtonIndex++;
+        if (selectedButtonIndex >= (int)buttons.size()) selectedButtonIndex = 0;
+    } else if (key == GLFW_KEY_ENTER) {
+        if (selectedButtonIndex >= 0 && selectedButtonIndex < (int)buttons.size()) {
+            if (buttons[selectedButtonIndex].onClick) {
+                buttons[selectedButtonIndex].onClick();
+            }
+        }
     }
 }
 

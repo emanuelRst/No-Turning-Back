@@ -38,6 +38,7 @@ public:
     void Render(unsigned int shaderProgram, unsigned int quadVAO, int width, int height);
     void RenderText(const std::string& text, float x, float y, float scale, glm::vec3 color, int width, int height);
     bool HandleClick(double mouseX, double mouseY);
+    void HandleKeyEvent(int key); // Nueva función
     void AddButton(const std::string& text, float x, float y, float w, float h, std::function<void()> onClick, const std::string& audioPath = "");
     float GetTextWidth(const std::string& text, float scale);
     void GetTextVerticalBounds(const std::string& text, float scale, float& minBearingY, float& maxBearingY);
@@ -45,6 +46,7 @@ public:
 private:
     std::vector<Button> buttons;
     double mouseX = 0.0, mouseY = 0.0;
+    int selectedButtonIndex = -1; // Índice del botón seleccionado por teclado
     
     AudioManager audioManager;
     

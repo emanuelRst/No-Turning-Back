@@ -344,15 +344,17 @@ bool Game::Init() {
 void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (instance && action == GLFW_PRESS) {
         if (key == GLFW_KEY_ESCAPE) {
-            if (instance->currentState == GameState::PLAYING) {
+            if (instance->currentState == GameState::MENU) {
+                glfwSetWindowShouldClose(window, true);
+            } else {
                 instance->currentState = GameState::MENU;
                 glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-            } else {
-                glfwSetWindowShouldClose(window, true);
             }
         }
         
-        if (instance->currentState == GameState::PLAYING) {
+        if (instance->currentState == GameState::MENU) {
+            instance->menu->HandleKeyEvent(key);
+        } else if (instance->currentState == GameState::PLAYING) {
             if (key == GLFW_KEY_R && instance->player.HasCrashed()) {
                 instance->ResetRun();
                 return;
