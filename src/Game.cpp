@@ -2,6 +2,8 @@
 #include "Menu.h"
 #include <algorithm>
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -9,103 +11,17 @@
 // Inicialización de la instancia estática
 Game* Game::instance = nullptr;
 
-// Shader para Phong con soporte de texturas
-const char* vertexShaderSource = R"(
-#version 330 core
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec3 aNormal;
-layout (location = 2) in vec2 aTexCoords;
-layout (location = 3) in ivec4 aBoneIDs;
-layout (location = 4) in vec4 aWeights;
-
-out vec3 FragPos;
-out vec3 Normal;
-out vec2 TexCoords;
-
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
-uniform mat4 boneMatrices[100];
-uniform bool isAnimated;
-
-void main() {
-    vec4 totalPosition;
-    if (isAnimated) {
-        mat4 BoneTransform = boneMatrices[aBoneIDs[0]] * aWeights[0];
-        BoneTransform += boneMatrices[aBoneIDs[1]] * aWeights[1];
-        BoneTransform += boneMatrices[aBoneIDs[2]] * aWeights[2];
-        BoneTransform += boneMatrices[aBoneIDs[3]] * aWeights[3];
-        totalPosition = BoneTransform * vec4(aPos, 1.0);
-    } else {
-        totalPosition = vec4(aPos, 1.0);
+static std::string ReadFile(const std::string& path) {
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        std::cerr << "ERROR::SHADER::FILE_NOT_FOUND: " << path << std::endl;
+        return "";
     }
-    
-    FragPos = vec3(model * totalPosition);
-    Normal = mat3(transpose(inverse(model))) * aNormal;
-    TexCoords = aTexCoords;
-    gl_Position = projection * view * vec4(FragPos, 1.0);
+    std::stringstream stream;
+    stream << file.rdbuf();
+    file.close();
+    return stream.str();
 }
-)";
-
-const char* fragmentShaderSource = R"(
-#version 330 core
-out vec4 FragColor;
-
-in vec3 FragPos;
-in vec3 Normal;
-in vec2 TexCoords;
-
-uniform vec3 lightPos;
-uniform vec3 viewPos;
-uniform vec3 lightColor;
-uniform vec3 objectColor;
-uniform sampler2D texture_diffuse1;
-uniform bool useTexture;
-
-void main() {
-    // Ambient
-    float ambientStrength = 0.1;
-    vec3 ambient = ambientStrength * lightColor;
-
-    // Diffuse
-    vec3 norm = normalize(Normal);
-    vec3 lightDir = normalize(lightPos - FragPos);
-    float diff = max(dot(norm, lightDir), 0.0);
-    vec3 diffuse = diff * lightColor;
-
-    // Specular
-    float specularStrength = 0.5;
-    vec3 viewDir = normalize(viewPos - FragPos);
-    vec3 reflectDir = reflect(-lightDir, norm);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
-    vec3 specular = specularStrength * spec * lightColor;
-
-    vec4 texColor = useTexture ? texture(texture_diffuse1, TexCoords) : vec4(1.0);
-    vec3 result = (ambient + diffuse + specular) * objectColor * texColor.rgb;
-    FragColor = vec4(result, texColor.a);
-}
-)";
-
-const char* menuVertexShaderSource = R"(
-#version 330 core
-layout (location = 0) in vec3 aPos;
-uniform mat4 model;
-uniform mat4 projection;
-void main() {
-    gl_Position = projection * model * vec4(aPos, 1.0);
-}
-)";
-
-const char* menuFragmentShaderSource = R"(
-#version 330 core
-out vec4 FragColor;
-uniform vec3 objectColor;
-void main() {
-    FragColor = vec4(objectColor, 1.0);
-}
-)";
-
-
 
 namespace {
 constexpr float kRenderGroundY = 0.0f;
@@ -211,11 +127,15 @@ bool Game::Init() {
     glEnable(GL_DEPTH_TEST);
 
     // Compilar Shaders
+    std::string vertexCode = ReadFile("assets/shaders/shader.vert");
+    std::string fragmentCode = ReadFile("assets/shaders/shader.frag");
+    const char* vSrc = vertexCode.c_str();
+    const char* fSrc = fragmentCode.c_str();
     unsigned int vShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vShader, 1, &vertexShaderSource, NULL);
+    glShaderSource(vShader, 1, &vSrc, NULL);
     glCompileShader(vShader);
     unsigned int fShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fShader, 1, &fragmentShaderSource, NULL);
+    glShaderSource(fShader, 1, &fSrc, NULL);
     glCompileShader(fShader);
     shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vShader);
@@ -223,11 +143,15 @@ bool Game::Init() {
     glLinkProgram(shaderProgram);
 
     // Compilar Menu Shader
+    std::string menuVCode = ReadFile("assets/shaders/menu.vert");
+    std::string menuFCode = ReadFile("assets/shaders/menu.frag");
+    const char* menuVSrc = menuVCode.c_str();
+    const char* menuFSrc = menuFCode.c_str();
     unsigned int vMenuShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vMenuShader, 1, &menuVertexShaderSource, NULL);
+    glShaderSource(vMenuShader, 1, &menuVSrc, NULL);
     glCompileShader(vMenuShader);
     unsigned int fMenuShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fMenuShader, 1, &menuFragmentShaderSource, NULL);
+    glShaderSource(fMenuShader, 1, &menuFSrc, NULL);
     glCompileShader(fMenuShader);
     menuShaderProgram = glCreateProgram();
     glAttachShader(menuShaderProgram, vMenuShader);
