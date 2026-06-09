@@ -93,8 +93,8 @@ bool Game::Init() {
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
     
     // Inicializar menú
-    menu->Init("assets/fonts/stocky.ttf");
-    gameOverMenu->Init("assets/fonts/stocky.ttf");
+    menu->Init("assets/fonts/Hippopotamus Apocalypse.otf");
+    gameOverMenu->Init("assets/fonts/Hippopotamus Apocalypse.otf");
 
     // Cargar modelo del jugador
     playerModel = new Model("assets/models/run_forrest/scene.gltf");
