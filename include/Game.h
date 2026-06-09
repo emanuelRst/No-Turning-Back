@@ -14,7 +14,7 @@
 // Forward declaration
 class Menu;
 
-enum class GameState { MENU, PLAYING, GAME_OVER };
+enum class GameState { MENU, PLAYING, GAME_OVER, PAUSED, HELP };
 
 // Clase sencilla para los segmentos del suelo
 class GroundSegment : public GameObject {
@@ -53,6 +53,8 @@ private:
     GameState currentState;
     Menu* menu;
     Menu* gameOverMenu;
+    Menu* pauseMenu;
+    Menu* helpMenu;
     
     // Shader program y buffers
     unsigned int shaderProgram;

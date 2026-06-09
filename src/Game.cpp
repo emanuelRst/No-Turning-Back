@@ -43,32 +43,53 @@ constexpr int kNumGroundSegments = 5;
 Game::Game(int w, int h)
     : window(nullptr), width(w), height(h), shaderProgram(0), VAO(0),
       playerModel(nullptr), trains(), nextTrainLane(0), gameTime(0.0f), groundScroll(0.0f),
-      currentState(GameState::MENU), menu(new Menu()), gameOverMenu(new Menu()) {
+      currentState(GameState::MENU), menu(new Menu()), gameOverMenu(new Menu()), pauseMenu(new Menu()), helpMenu(new Menu()) {
     instance = this;
 
     float buttonWidth = 250.0f;
     
     // Configurar botones del menú (Tamaño 600x150)
-    menu->AddButton("Iniciar Juego", 660 + buttonWidth, 200, 600, 150, [this](){ 
-        this->ResetRun(); // Reiniciar al iniciar
-        this->currentState = GameState::PLAYING;
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    }, "assets/audio/Menu/MenuEfecto.wav");
-    menu->AddButton("Cambiar Personajes", 680 + buttonWidth, 370, 600, 150, [](){ std::cout << "Personajes\n"; }, "assets/audio/Menu/MenuEfecto.wav");
-    menu->AddButton("Opciones", 660 + buttonWidth, 540, 600, 150, [](){ std::cout << "Opciones\n"; }, "assets/audio/Menu/MenuEfecto.wav");
-    menu->AddButton("Creditos", 660 + buttonWidth, 710, 600, 150, [](){ std::cout << "Creditos\n"; }, "assets/audio/Menu/MenuEfecto.wav");
-    
-    // Configurar botones de Game Over (uno al lado del otro, más abajo)
-    float gameOverY = 700.0f; // Más abajo
-    float btnGap = 400.0f;    // Separación horizontal
-    gameOverMenu->AddButton("Reiniciar", (float)width / 2.0f + btnGap / 2.0f, gameOverY, 300, 100, [this](){
+    menu->AddButton("Start Game", 660 + buttonWidth, 200, 600, 150, [this](){ 
         this->ResetRun();
         this->currentState = GameState::PLAYING;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     }, "assets/audio/Menu/MenuEfecto.wav");
-    gameOverMenu->AddButton("Regresar al menu", (float)width / 2.0f + btnGap + 400.0f, gameOverY, 300, 100, [this](){
+    menu->AddButton("Change Characters", 680 + buttonWidth, 370, 600, 150, [](){ std::cout << "Characters\n"; }, "assets/audio/Menu/MenuEfecto.wav");
+    menu->AddButton("Help", 660 + buttonWidth, 540, 600, 150, [this](){
+        this->currentState = GameState::HELP;
+    }, "assets/audio/Menu/MenuEfecto.wav");
+    menu->AddButton("Credits", 660 + buttonWidth, 710, 600, 150, [](){ std::cout << "Credits\n"; }, "assets/audio/Menu/MenuEfecto.wav");
+    menu->AddButton("Exit", 660 + buttonWidth, 880, 600, 150, [this](){
+        glfwSetWindowShouldClose(this->window, true);
+    }, "assets/audio/Menu/MenuEfecto.wav");
+    
+    // Configurar botones de Game Over (uno al lado del otro, más abajo)
+    float gameOverY = 700.0f;
+    float btnGap = 400.0f;
+    gameOverMenu->AddButton("Restart", (float)width / 2.0f + btnGap / 2.0f, gameOverY, 300, 100, [this](){
+        this->ResetRun();
+        this->currentState = GameState::PLAYING;
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    }, "assets/audio/Menu/MenuEfecto.wav");
+    gameOverMenu->AddButton("Back to Menu", (float)width / 2.0f + btnGap + 400.0f, gameOverY, 300, 100, [this](){
         this->currentState = GameState::MENU;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }, "assets/audio/Menu/MenuEfecto.wav");
+
+    // Configurar botones de Pausa
+    float pauseY = (float)height / 2.0f;
+    pauseMenu->AddButton("Resume", (float)width / 2.0f, pauseY - 100.0f, 300, 100, [this](){
+        this->currentState = GameState::PLAYING;
+        glfwSetInputMode(this->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    }, "assets/audio/Menu/MenuEfecto.wav");
+    pauseMenu->AddButton("Back to Menu", (float)width / 2.0f, pauseY + 50.0f, 300, 100, [this](){
+        this->currentState = GameState::MENU;
+        glfwSetInputMode(this->window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }, "assets/audio/Menu/MenuEfecto.wav");
+
+    // Configurar boton de Ayuda
+    helpMenu->AddButton("Back", (float)width / 2.0f, (float)height - 100.0f, 300, 100, [this](){
+        this->currentState = GameState::MENU;
     }, "assets/audio/Menu/MenuEfecto.wav");
 
     ResetRun();
@@ -78,6 +99,8 @@ Game::~Game() {
     delete playerModel;
     delete menu;
     delete gameOverMenu;
+    delete pauseMenu;
+    delete helpMenu;
     glfwTerminate();
 }
 
@@ -87,7 +110,7 @@ bool Game::Init() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    window = glfwCreateWindow(width, height, "Endless Runner Prototipo", NULL, NULL);
+    window = glfwCreateWindow(width, height, "Endless Runner", NULL, NULL);
     if (!window) return false;
     glfwMakeContextCurrent(window);
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
@@ -95,6 +118,8 @@ bool Game::Init() {
     // Inicializar menú
     menu->Init("assets/fonts/Hippopotamus Apocalypse.otf");
     gameOverMenu->Init("assets/fonts/Hippopotamus Apocalypse.otf");
+    pauseMenu->Init("assets/fonts/Hippopotamus Apocalypse.otf");
+    helpMenu->Init("assets/fonts/Hippopotamus Apocalypse.otf");
 
     // Cargar modelo del jugador
     playerModel = new Model("assets/models/run_forrest/scene.gltf");
@@ -268,10 +293,16 @@ void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, in
         if (key == GLFW_KEY_ESCAPE) {
             if (instance->currentState == GameState::MENU) {
                 glfwSetWindowShouldClose(window, true);
-            } else {
-                instance->currentState = GameState::MENU;
+            } else if (instance->currentState == GameState::PLAYING) {
+                instance->currentState = GameState::PAUSED;
                 glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            } else if (instance->currentState == GameState::PAUSED) {
+                instance->currentState = GameState::PLAYING;
+                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            } else if (instance->currentState == GameState::HELP) {
+                instance->currentState = GameState::MENU;
             }
+            // GAME_OVER: ESC no hace nada
         }
         
         if (instance->currentState == GameState::MENU) {
@@ -287,26 +318,40 @@ void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, in
             if (key == GLFW_KEY_A || key == GLFW_KEY_LEFT) instance->player.MoveLeft();
             if (key == GLFW_KEY_D || key == GLFW_KEY_RIGHT) instance->player.MoveRight();
             if (key == GLFW_KEY_SPACE || key == GLFW_KEY_W) instance->player.Jump();
+            if (key == GLFW_KEY_S) instance->player.FastFall();
+        } else if (instance->currentState == GameState::PAUSED) {
+            instance->pauseMenu->HandleKeyEvent(key);
+        } else if (instance->currentState == GameState::HELP) {
+            instance->helpMenu->HandleKeyEvent(key);
         }
     }
 }
 
 void Game::CursorPosCallback(GLFWwindow* window, double xpos, double ypos) {
-    if (instance && (instance->currentState == GameState::MENU || instance->currentState == GameState::GAME_OVER)) {
-        if (instance->currentState == GameState::MENU) instance->menu->SetMousePos(xpos, ypos);
-        else instance->gameOverMenu->SetMousePos(xpos, ypos);
+    if (!instance) return;
+    if (instance->currentState == GameState::MENU) {
+        instance->menu->SetMousePos(xpos, ypos);
+    } else if (instance->currentState == GameState::GAME_OVER) {
+        instance->gameOverMenu->SetMousePos(xpos, ypos);
+    } else if (instance->currentState == GameState::PAUSED) {
+        instance->pauseMenu->SetMousePos(xpos, ypos);
+    } else if (instance->currentState == GameState::HELP) {
+        instance->helpMenu->SetMousePos(xpos, ypos);
     }
 }
 
 void Game::MouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
-    if (instance && (instance->currentState == GameState::MENU || instance->currentState == GameState::GAME_OVER) && action == GLFW_PRESS) {
-        double xpos, ypos;
-        glfwGetCursorPos(window, &xpos, &ypos);
-        if (instance->currentState == GameState::MENU) {
-            instance->menu->HandleClick(xpos, ypos);
-        } else {
-            instance->gameOverMenu->HandleClick(xpos, ypos);
-        }
+    if (!instance || action != GLFW_PRESS) return;
+    double xpos, ypos;
+    glfwGetCursorPos(window, &xpos, &ypos);
+    if (instance->currentState == GameState::MENU) {
+        instance->menu->HandleClick(xpos, ypos);
+    } else if (instance->currentState == GameState::GAME_OVER) {
+        instance->gameOverMenu->HandleClick(xpos, ypos);
+    } else if (instance->currentState == GameState::PAUSED) {
+        instance->pauseMenu->HandleClick(xpos, ypos);
+    } else if (instance->currentState == GameState::HELP) {
+        instance->helpMenu->HandleClick(xpos, ypos);
     }
 }
 
@@ -341,6 +386,20 @@ void Game::Update(float deltaTime) {
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
         menu->Update(deltaTime, fbWidth, fbHeight);
+        return;
+    }
+
+    if (currentState == GameState::HELP) {
+        int fbWidth, fbHeight;
+        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+        helpMenu->Update(deltaTime, fbWidth, fbHeight);
+        return;
+    }
+
+    if (currentState == GameState::PAUSED) {
+        int fbWidth, fbHeight;
+        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+        pauseMenu->Update(deltaTime, fbWidth, fbHeight);
         return;
     }
 
@@ -438,15 +497,29 @@ void Game::Render() {
         return;
     }
 
+    if (currentState == GameState::HELP) {
+        int fbWidth, fbHeight;
+        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+        helpMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight);
+
+        helpMenu->RenderText("HELP - CONTROLS", fbWidth / 2.0f, fbHeight / 2.0f - 200.0f, 1.2f, glm::vec3(1.0f, 1.0f, 0.0f), fbWidth, fbHeight);
+        helpMenu->RenderText("A / ← : Move left",     fbWidth / 2.0f, fbHeight / 2.0f - 100.0f, 0.7f, glm::vec3(1.0f, 1.0f, 1.0f), fbWidth, fbHeight);
+        helpMenu->RenderText("D / → : Move right",       fbWidth / 2.0f, fbHeight / 2.0f - 50.0f,  0.7f, glm::vec3(1.0f, 1.0f, 1.0f), fbWidth, fbHeight);
+        helpMenu->RenderText("W / SPACE : Jump",                 fbWidth / 2.0f, fbHeight / 2.0f,           0.7f, glm::vec3(1.0f, 1.0f, 1.0f), fbWidth, fbHeight);
+        helpMenu->RenderText("S : Fast fall",            fbWidth / 2.0f, fbHeight / 2.0f + 50.0f,  0.7f, glm::vec3(0.0f, 0.8f, 1.0f), fbWidth, fbHeight);
+        helpMenu->RenderText("ESC : Pause",                       fbWidth / 2.0f, fbHeight / 2.0f + 100.0f, 0.7f, glm::vec3(1.0f, 1.0f, 1.0f), fbWidth, fbHeight);
+
+        glfwSwapBuffers(window);
+        return;
+    }
+
     if (currentState == GameState::GAME_OVER) {
-        // Renderizar el juego de fondo (opcional, podrías renderizar el último frame)
-        // Por ahora solo renderizamos el menú de game over
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
         gameOverMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight);
         
         // Dibujar texto "Perdiste"
-        gameOverMenu->RenderText("Perdiste", fbWidth / 2.0f, fbHeight / 2.0f - 100.0f, 1.5f, glm::vec3(1.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+        gameOverMenu->RenderText("Game Over", fbWidth / 2.0f, fbHeight / 2.0f - 100.0f, 1.5f, glm::vec3(1.0f, 0.0f, 0.0f), fbWidth, fbHeight);
         
         glfwSwapBuffers(window);
         return;
@@ -548,5 +621,11 @@ void Game::Render() {
         segModel = glm::scale(segModel, ss * kCubeScaleFactor);
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(segModel));
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+    }
+
+    if (currentState == GameState::PAUSED) {
+        int fbWidth, fbHeight;
+        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+        pauseMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight);
     }
 }

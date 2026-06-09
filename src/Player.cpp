@@ -276,6 +276,12 @@ void Player::MoveRight() {
     }
 }
 
+void Player::FastFall() {
+    if (!hasCrashed && !isGrounded) {
+        velocity.y = -15.0f;
+    }
+}
+
 void Player::Jump() {
     // Solo se puede saltar si hay soporte: suelo o techo de un objeto.
     if (hasCrashed) {

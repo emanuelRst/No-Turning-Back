@@ -26,6 +26,7 @@ public:
     void MoveLeft();
     void MoveRight();
     void Jump();
+    void FastFall();
     void Reset();
 
     // Tamano actual de la hitbox. El renderer temporal lo usa para escalar el cubo.
