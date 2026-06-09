@@ -135,6 +135,8 @@ void Menu::Init(const std::string& fontPath) {
         if (button.width == 0.0f) button.width = GetTextWidth(button.text, 1.0f);
         if (button.height == 0.0f) button.height = 64.0f; 
     }
+
+    audioManager.LoadSound("assets/audio/Menu/MenuAmbiente.wav", ambientBuffer);
 }
 
 void Menu::SetMousePos(double x, double y) {
@@ -291,5 +293,15 @@ void Menu::AddButton(const std::string& text, float x, float y, float w, float h
         audioManager.LoadSound(audioPath, buffer);
     }
     buttons.push_back({text, x, y, w, h, false, false, 1.0f, onClick, buffer});
+}
+
+void Menu::StartAmbient() {
+    if (ambientBuffer != 0) {
+        audioManager.PlayAmbient(ambientBuffer);
+    }
+}
+
+void Menu::StopAmbient() {
+    audioManager.StopAmbient();
 }
 

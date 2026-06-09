@@ -51,6 +51,7 @@ private:
     GLFWwindow* window;
     int width, height;
     GameState currentState;
+    GameState prevState = GameState::PLAYING;
     Menu* menu;
     Menu* gameOverMenu;
     Menu* pauseMenu;

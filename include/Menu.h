@@ -40,6 +40,8 @@ public:
     bool HandleClick(double mouseX, double mouseY);
     void HandleKeyEvent(int key); // Nueva función
     void AddButton(const std::string& text, float x, float y, float w, float h, std::function<void()> onClick, const std::string& audioPath = "");
+    void StartAmbient();
+    void StopAmbient();
     float GetTextWidth(const std::string& text, float scale);
     void GetTextVerticalBounds(const std::string& text, float scale, float& minBearingY, float& maxBearingY);
 
@@ -49,6 +51,8 @@ private:
     int selectedButtonIndex = -1; // Índice del botón seleccionado por teclado
     
     AudioManager audioManager;
+    
+    ALuint ambientBuffer = 0;
     
     std::map<char, Character> Characters;
     unsigned int textVAO, textVBO;

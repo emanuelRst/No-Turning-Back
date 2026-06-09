@@ -17,6 +17,7 @@ AudioManager::AudioManager() {
 }
 
 AudioManager::~AudioManager() {
+    StopAmbient();
     alDeleteSources(sources.size(), sources.data());
     alcMakeContextCurrent(nullptr);
     alcDestroyContext(context);
@@ -67,5 +68,24 @@ void AudioManager::PlaySound(ALuint buffer) {
         alSourcePlay(source);
     } else {
         std::cerr << "No available audio sources" << std::endl;
+    }
+}
+
+void AudioManager::PlayAmbient(ALuint buffer) {
+    if (ambientSource != 0) {
+        alSourceStop(ambientSource);
+        alDeleteSources(1, &ambientSource);
+    }
+    alGenSources(1, &ambientSource);
+    alSourcei(ambientSource, AL_BUFFER, buffer);
+    alSourcei(ambientSource, AL_LOOPING, AL_TRUE);
+    alSourcePlay(ambientSource);
+}
+
+void AudioManager::StopAmbient() {
+    if (ambientSource != 0) {
+        alSourceStop(ambientSource);
+        alDeleteSources(1, &ambientSource);
+        ambientSource = 0;
     }
 }

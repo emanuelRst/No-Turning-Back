@@ -382,6 +382,15 @@ float Game::GetCurrentSpeed() const {
 }
 
 void Game::Update(float deltaTime) {
+    if (prevState != currentState) {
+        if (currentState == GameState::MENU) {
+            menu->StartAmbient();
+        } else if (prevState == GameState::MENU) {
+            menu->StopAmbient();
+        }
+        prevState = currentState;
+    }
+
     if (currentState == GameState::MENU) {
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);

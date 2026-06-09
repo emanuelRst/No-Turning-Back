@@ -14,11 +14,14 @@ public:
 
     bool LoadSound(const std::string& filename, ALuint& buffer);
     void PlaySound(ALuint buffer);
+    void PlayAmbient(ALuint buffer);
+    void StopAmbient();
 
 private:
     ALCdevice* device;
     ALCcontext* context;
     std::vector<ALuint> sources;
+    ALuint ambientSource = 0;
 };
 
 #endif
