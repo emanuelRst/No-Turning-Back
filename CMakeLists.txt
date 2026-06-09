@@ -11,6 +11,7 @@ find_package(glm CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(OpenGL REQUIRED)
+find_package(soil2 CONFIG REQUIRED)
 
 # Intentar buscar OpenAL y SndFile vía configuración de CMake (vcpkg)
 find_package(OpenAL CONFIG QUIET)
@@ -82,6 +83,7 @@ target_link_libraries(EndlessRunner PRIVATE
     ${OPENAL_LIBRARIES}
     ${SNDFILE_LIBRARIES}
     ${OPENGL_LIBRARIES}
+    soil2
 )
 
 # Copiar o configurar que reconozca Linux vs Windows para hilos si es necesario

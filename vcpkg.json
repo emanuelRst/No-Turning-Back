@@ -7,6 +7,7 @@
     "assimp",
     "nlohmann-json",
     "openal-soft",
-    "libsndfile"
+    "libsndfile",
+    "soil2"
   ]
 }
