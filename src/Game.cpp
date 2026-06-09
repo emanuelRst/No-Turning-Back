@@ -151,6 +151,46 @@ bool Game::Init() {
     // Habilitar el test de profundidad
     glEnable(GL_DEPTH_TEST);
 
+    // Crear FBO para el fondo del menú
+    int fbWidth, fbHeight;
+    glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+    glGenFramebuffers(1, &menuFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, menuFBO);
+    glGenTextures(1, &menuFBOTexture);
+    glBindTexture(GL_TEXTURE_2D, menuFBOTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, fbWidth, fbHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, menuFBOTexture, 0);
+    glGenRenderbuffers(1, &menuFBORBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, menuFBORBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, fbWidth, fbHeight);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, menuFBORBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    menuFBOWidth = fbWidth;
+    menuFBOHeight = fbHeight;
+
+    // Quad fullscreen para blur
+    float quadVertices[] = {
+        -1.0f,  1.0f, 0.0f, 1.0f,
+        -1.0f, -1.0f, 0.0f, 0.0f,
+         1.0f, -1.0f, 1.0f, 0.0f,
+        -1.0f,  1.0f, 0.0f, 1.0f,
+         1.0f, -1.0f, 1.0f, 0.0f,
+         1.0f,  1.0f, 1.0f, 1.0f
+    };
+    glGenVertexArrays(1, &blurVAO);
+    glGenBuffers(1, &blurVBO);
+    glBindVertexArray(blurVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, blurVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glBindVertexArray(0);
+
     // Compilar Shaders
     std::string vertexCode = ReadFile("assets/shaders/shader.vert");
     std::string fragmentCode = ReadFile("assets/shaders/shader.frag");
@@ -384,6 +424,7 @@ float Game::GetCurrentSpeed() const {
 void Game::Update(float deltaTime) {
     if (prevState != currentState) {
         if (currentState == GameState::MENU) {
+            ResetRun();
             menu->StartAmbient();
         } else if (prevState == GameState::MENU) {
             menu->StopAmbient();
@@ -501,7 +542,26 @@ void Game::Render() {
     if (currentState == GameState::MENU) {
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, menuFBO);
+        glViewport(0, 0, menuFBOWidth, menuFBOHeight);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        RenderGameScene();
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        glViewport(0, 0, fbWidth, fbHeight);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glDisable(GL_DEPTH_TEST);
+        glUseProgram(menuShaderProgram);
+        glUniform1i(glGetUniformLocation(menuShaderProgram, "screenTexture"), 0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, menuFBOTexture);
+        glBindVertexArray(blurVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindVertexArray(0);
+
         menu->Render(menuShaderProgram, VAO, fbWidth, fbHeight);
+
         glfwSwapBuffers(window);
         return;
     }
@@ -534,16 +594,23 @@ void Game::Render() {
         return;
     }
 
+    RenderGameScene();
+
+    if (currentState == GameState::PAUSED) {
+        int fbWidth, fbHeight;
+        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+        pauseMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight);
+    }
+}
+
+void Game::RenderGameScene() {
     glUseProgram(shaderProgram);
 
     glm::vec3 pos = player.GetPosition();
     glm::vec3 playerSize = player.GetCollisionSize();
 
-    // Cámara que sigue al jugador en X y Z, con vista más cenital que
-    // permite ver la vía completa. El target se eleva ligeramente para
-    // centrar la escena en la pantalla en vez de en el suelo.
-    glm::vec3 cameraTarget(pos.x, 0.3f, pos.z);
-    glm::vec3 cameraPos = cameraTarget + glm::vec3(0.0f, 2.5f, 6.0f);
+    glm::vec3 cameraTarget(pos.x, pos.y, pos.z);
+    glm::vec3 cameraPos = cameraTarget + glm::vec3(0.0f, 3.0f, 6.0f);
     glm::mat4 view = glm::lookAt(cameraPos, cameraTarget, glm::vec3(0.0f, 1.0f, 0.0f));
 
     int fbWidth, fbHeight;
@@ -558,18 +625,10 @@ void Game::Render() {
     glUniform3f(glGetUniformLocation(shaderProgram, "viewPos"), cameraPos.x, cameraPos.y, cameraPos.z);
     glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"), 1.0f, 1.0f, 1.0f);
 
-    // Cubo base: vértices en ±0.1, por lo que un factor 5*size lo lleva al
-    // tamaño exacto de la hitbox (visual == hitbox).
     constexpr float kCubeScaleFactor = 5.0f;
 
-    // --- Jugador ---
     if (playerModel) {
         glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 1);
-        // Para que los pies del modelo caigan en world y = pos.y, hay que
-        // colocar el origen local del asset de forma que su punto más bajo
-        // (AABB.min.y en espacio del asset) quede en pos.y tras la escala.
-        //   model_feet_y = translateY + (AABB.min.y * kPlayerScale)
-        //   pos.y = model_feet_y  =>  translateY = pos.y - AABB.min.y * scale
         const ModelAABB& modelAABB = playerModel->GetAABB();
         const float translateY = pos.y - modelAABB.min.y * Player::kPlayerScale;
         glm::mat4 visualModel = glm::translate(glm::mat4(1.0f),
@@ -584,7 +643,6 @@ void Game::Render() {
         playerModel->Draw(shaderProgram, visualModel, (float)glfwGetTime());
     } else {
         glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 0);
-        // Anclar el cubo a los pies (mismo criterio que la hitbox y el modelo).
         glm::mat4 playerCube = glm::translate(glm::mat4(1.0f),
                                               glm::vec3(pos.x, pos.y + playerSize.y * 0.5f, pos.z));
         playerCube = glm::scale(playerCube, playerSize * kCubeScaleFactor);
@@ -599,7 +657,6 @@ void Game::Render() {
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }
 
-    // --- Trenes ---
     glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 0);
     glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.85f, 0.2f, 0.12f);
     glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
@@ -613,28 +670,17 @@ void Game::Render() {
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }
 
-    // --- Suelo con scroll continuo ---
-    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.5f, 0.5f, 0.5f); // Gris para el camino sin textura
+    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.5f, 0.5f, 0.5f);
     glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
-    // glActiveTexture(GL_TEXTURE0);
-    // glBindTexture(GL_TEXTURE_2D, groundTexture);
-    // glUniform1i(glGetUniformLocation(shaderProgram, "texture_diffuse1"), 0);
     glBindVertexArray(groundVAO);
     float scrollZ = groundScroll - (int)(groundScroll / kGroundSegmentLength) * kGroundSegmentLength;
     for (const auto& segment : groundSegments) {
         const glm::vec3 sp = segment.GetPosition();
         const glm::vec3 ss = segment.GetHitboxSize();
-        // La cara superior del segmento queda en y=0 restando media altura.
         glm::mat4 segModel = glm::translate(glm::mat4(1.0f),
                                             glm::vec3(sp.x, sp.y - ss.y * 0.5f, sp.z + scrollZ));
         segModel = glm::scale(segModel, ss * kCubeScaleFactor);
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(segModel));
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-    }
-
-    if (currentState == GameState::PAUSED) {
-        int fbWidth, fbHeight;
-        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
-        pauseMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight);
     }
 }

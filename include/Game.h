@@ -47,6 +47,7 @@ private:
     void UpdateGround(float deltaTime, float currentSpeed);
     void ResetTrain(Train& train);
     void ResetRun();
+    void RenderGameScene();
 
     GLFWwindow* window;
     int width, height;
@@ -72,6 +73,12 @@ private:
     // Instancia estática para acceder desde el callback
     unsigned int groundVAO, groundVBO, groundEBO;
     unsigned int groundTexture;
+
+    unsigned int menuFBO = 0;
+    unsigned int menuFBOTexture = 0;
+    unsigned int menuFBORBO = 0;
+    int menuFBOWidth = 0, menuFBOHeight = 0;
+    unsigned int blurVAO = 0, blurVBO = 0;
 
     static Game* instance;
 public:
