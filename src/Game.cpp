@@ -42,7 +42,7 @@ constexpr int kNumGroundSegments = 5;
 
 Game::Game(int w, int h)
     : window(nullptr), width(w), height(h), shaderProgram(0), VAO(0),
-      playerModel(nullptr), trains(), nextTrainLane(0), gameTime(0.0f), groundScroll(0.0f),
+      playerModel(nullptr), citybusModel(nullptr), trains(), nextTrainLane(0), gameTime(0.0f), groundScroll(0.0f),
       currentState(GameState::MENU), menu(new Menu()), gameOverMenu(new Menu()), pauseMenu(new Menu()), helpMenu(new Menu()) {
     instance = this;
 
@@ -97,6 +97,7 @@ Game::Game(int w, int h)
 
 Game::~Game() {
     delete playerModel;
+    delete citybusModel;
     delete menu;
     delete gameOverMenu;
     delete pauseMenu;
@@ -123,6 +124,16 @@ bool Game::Init() {
 
     // Cargar modelo del jugador
     playerModel = new Model("assets/models/run_forrest/scene.gltf");
+    // Cargar modelo del citybus
+    citybusModel = new Model("assets/models/citybus/scene.gltf");
+    if (!citybusModel || citybusModel->GetAABB().min.x > citybusModel->GetAABB().max.x) {
+        std::cerr << "ERROR::GAME:: Failed to load citybus model or AABB is invalid." << std::endl;
+    } else {
+        const ModelAABB& aabb = citybusModel->GetAABB();
+        std::cout << "Citybus model loaded successfully." << std::endl;
+        std::cout << "Citybus AABB: min(" << aabb.min.x << ", " << aabb.min.y << ", " << aabb.min.z 
+                  << ") max(" << aabb.max.x << ", " << aabb.max.y << ", " << aabb.max.z << ")" << std::endl;
+    }
 
     // Ajustar hitbox del jugador usando el AABB del modelo (calculado en Model via Assimp).
     // Si la carga falla, el AABB cae al fallback unitario del Model y la hitbox
@@ -562,6 +573,25 @@ void Game::Render() {
     // tamaño exacto de la hitbox (visual == hitbox).
     constexpr float kCubeScaleFactor = 5.0f;
 
+    // --- Suelo con scroll continuo ---
+    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.5f, 0.5f, 0.5f); // Gris para el camino sin textura
+    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
+    // glActiveTexture(GL_TEXTURE0);
+    // glBindTexture(GL_TEXTURE_2D, groundTexture);
+    // glUniform1i(glGetUniformLocation(shaderProgram, "texture_diffuse1"), 0);
+    glBindVertexArray(groundVAO);
+    float scrollZ = groundScroll - (int)(groundScroll / kGroundSegmentLength) * kGroundSegmentLength;
+    for (const auto& segment : groundSegments) {
+        const glm::vec3 sp = segment.GetPosition();
+        const glm::vec3 ss = segment.GetHitboxSize();
+        // La cara superior del segmento queda en y=0 restando media altura.
+        glm::mat4 segModel = glm::translate(glm::mat4(1.0f),
+                                            glm::vec3(sp.x, sp.y - ss.y * 0.5f, sp.z + scrollZ));
+        segModel = glm::scale(segModel, ss * kCubeScaleFactor);
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(segModel));
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+    }
+
     // --- Jugador ---
     if (playerModel) {
         glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 1);
@@ -601,36 +631,36 @@ void Game::Render() {
 
     // --- Trenes ---
     glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 0);
-    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.85f, 0.2f, 0.12f);
-    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
-    glBindVertexArray(VAO);
-    for (const Train& train : trains) {
-        const glm::vec3 tp = train.GetPosition();
-        const glm::vec3 ts = train.GetHitboxSize();
-        glm::mat4 trainModel = glm::translate(glm::mat4(1.0f), tp);
-        trainModel = glm::scale(trainModel, ts * kCubeScaleFactor);
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(trainModel));
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+    
+    if (citybusModel) {
+        // Renderizado del modelo citybus
+        for (const Train& train : trains) {
+            const glm::vec3 tp = train.GetPosition();
+            
+            // Posicionar, rotar y escalar
+            glm::mat4 busModel = glm::translate(glm::mat4(1.0f), tp);
+            busModel = glm::rotate(busModel, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            busModel = glm::scale(busModel, glm::vec3(0.5f)); 
+            
+            glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 1.0f, 1.0f);
+            glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
+            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(busModel));
+            citybusModel->Draw(shaderProgram, busModel, 0.0f);
+        }
+    } else {
+        glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.85f, 0.2f, 0.12f);
+        glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
+        glBindVertexArray(VAO);
+        for (const Train& train : trains) {
+            const glm::vec3 tp = train.GetPosition();
+            const glm::vec3 ts = train.GetHitboxSize();
+            glm::mat4 trainModel = glm::translate(glm::mat4(1.0f), tp);
+            trainModel = glm::scale(trainModel, ts * kCubeScaleFactor);
+            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(trainModel));
+            glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+        }
     }
 
-    // --- Suelo con scroll continuo ---
-    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.5f, 0.5f, 0.5f); // Gris para el camino sin textura
-    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
-    // glActiveTexture(GL_TEXTURE0);
-    // glBindTexture(GL_TEXTURE_2D, groundTexture);
-    // glUniform1i(glGetUniformLocation(shaderProgram, "texture_diffuse1"), 0);
-    glBindVertexArray(groundVAO);
-    float scrollZ = groundScroll - (int)(groundScroll / kGroundSegmentLength) * kGroundSegmentLength;
-    for (const auto& segment : groundSegments) {
-        const glm::vec3 sp = segment.GetPosition();
-        const glm::vec3 ss = segment.GetHitboxSize();
-        // La cara superior del segmento queda en y=0 restando media altura.
-        glm::mat4 segModel = glm::translate(glm::mat4(1.0f),
-                                            glm::vec3(sp.x, sp.y - ss.y * 0.5f, sp.z + scrollZ));
-        segModel = glm::scale(segModel, ss * kCubeScaleFactor);
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(segModel));
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-    }
 
     if (currentState == GameState::PAUSED) {
         int fbWidth, fbHeight;

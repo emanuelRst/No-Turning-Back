@@ -62,6 +62,7 @@ private:
     unsigned int menuShaderProgram;
     unsigned int VAO;
     Model* playerModel;
+    Model* citybusModel;
     std::vector<Train> trains;
     std::vector<GroundSegment> groundSegments;
     int nextTrainLane;

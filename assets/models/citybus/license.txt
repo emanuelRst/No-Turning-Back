@@ -1,0 +1,11 @@
+Model Information:
+* title:	Japanese bus "Yokohama City Bus" (Kanagawa)
+* source:	https://sketchfab.com/3d-models/japanese-bus-yokohama-city-bus-kanagawa-057ec9c165614938b9d05741035b9ed6
+* author:	VRC-IW (https://sketchfab.com/VRC-IW)
+
+Model License:
+* license type:	CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)
+* requirements:	Author must be credited. No commercial use.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Japanese bus "Yokohama City Bus" (Kanagawa)" (https://sketchfab.com/3d-models/japanese-bus-yokohama-city-bus-kanagawa-057ec9c165614938b9d05741035b9ed6) by VRC-IW (https://sketchfab.com/VRC-IW) licensed under CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)
