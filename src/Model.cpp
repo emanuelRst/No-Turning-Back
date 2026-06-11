@@ -8,6 +8,7 @@
 #include <string>
 #include <algorithm>
 #include <limits>
+#include <cstdlib>
 
 #include <SOIL2/SOIL2.h>
 
@@ -32,14 +33,15 @@ Model::~Model() {
     }
 }
 
-void Model::Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float animationTime) {
-    if (scene && scene->HasAnimations()) {
-        float TicksPerSecond = (float)(scene->mAnimations[0]->mTicksPerSecond != 0 ? scene->mAnimations[0]->mTicksPerSecond : 25.0f);
+void Model::Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float animationTime, unsigned int animIndex) {
+    if (scene && scene->HasAnimations() && animIndex < scene->mNumAnimations) {
+        const aiAnimation* anim = scene->mAnimations[animIndex];
+        float TicksPerSecond = (float)(anim->mTicksPerSecond != 0 ? anim->mTicksPerSecond : 25.0f);
         float TimeInTicks = animationTime * TicksPerSecond;
-        float AnimationTime = fmod(TimeInTicks, (float)scene->mAnimations[0]->mDuration);
+        float AnimationTime = fmod(TimeInTicks, (float)anim->mDuration);
 
         m_BoneMatrices.resize(boneCount);
-        ReadNodeHierarchy(AnimationTime, scene->mRootNode, glm::mat4(1.0f));
+        ReadNodeHierarchy(AnimationTime, scene->mRootNode, glm::mat4(1.0f), animIndex);
         for (unsigned int i = 0; i < m_BoneMatrices.size(); i++) {
              glUniformMatrix4fv(glGetUniformLocation(shaderProgram, ("boneMatrices[" + std::to_string(i) + "]").c_str()), 1, GL_FALSE, glm::value_ptr(m_BoneMatrices[i]));
         }
@@ -95,6 +97,9 @@ void Model::LoadModel(const std::string& path) {
     modelAABB = ModelAABB{};
     modelAABB.min = glm::vec3(std::numeric_limits<float>::max());
     modelAABB.max = glm::vec3(std::numeric_limits<float>::lowest());
+    meshAABB = ModelAABB{};
+    meshAABB.min = glm::vec3(std::numeric_limits<float>::max());
+    meshAABB.max = glm::vec3(std::numeric_limits<float>::lowest());
 
     // AABB real: recorrer la jerarquía aplicando mTransformation de cada nodo.
     ComputeAABB(scene->mRootNode, glm::mat4(1.0f));
@@ -133,6 +138,14 @@ void Model::ComputeAABB(aiNode* node, const glm::mat4& parentTransform) {
 void Model::processNode(aiNode *node, const aiScene *scene) {
     for (unsigned int i = 0; i < node->mNumMeshes; i++) {
         aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
+        // Acumular AABB en espacio del mesh (vértices crudos, sin transforms).
+        // Para modelos skinned los transforms de nodo se cancelan vía huesos en bind pose,
+        // por lo que el tamaño renderizado corresponde a estos vértices sin transformar.
+        for (unsigned int v = 0; v < mesh->mNumVertices; v++) {
+            glm::vec3 pos(mesh->mVertices[v].x, mesh->mVertices[v].y, mesh->mVertices[v].z);
+            meshAABB.min = glm::min(meshAABB.min, pos);
+            meshAABB.max = glm::max(meshAABB.max, pos);
+        }
         meshes.push_back(processMesh(mesh, scene));
     }
     for (unsigned int i = 0; i < node->mNumChildren; i++) {
@@ -243,7 +256,24 @@ std::vector<Texture> Model::loadMaterialTextures(aiMaterial *mat, aiTextureType 
         }
         if (!skip) {
             Texture texture;
-            texture.id = TextureFromFile(str.C_Str(), directory);
+            if (str.C_Str()[0] == '*') {
+                int idx = std::atoi(str.C_Str() + 1);
+                const aiTexture* tex = scene->mTextures[idx];
+                if (tex->mHeight == 0) {
+                    texture.id = SOIL_load_OGL_texture_from_memory(
+                        reinterpret_cast<unsigned char*>(tex->pcData), tex->mWidth,
+                        SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID,
+                        SOIL_FLAG_MIPMAPS | SOIL_FLAG_TEXTURE_REPEATS);
+                } else {
+                    texture.id = SOIL_load_OGL_texture_from_memory(
+                        reinterpret_cast<unsigned char*>(tex->pcData),
+                        tex->mWidth * tex->mHeight * 4,
+                        SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID,
+                        SOIL_FLAG_MIPMAPS | SOIL_FLAG_TEXTURE_REPEATS);
+                }
+            } else {
+                texture.id = TextureFromFile(str.C_Str(), directory);
+            }
             texture.type = typeName;
             texture.path = str.C_Str();
             textures.push_back(texture);
@@ -342,9 +372,9 @@ void Model::CalcInterpolatedScaling(aiVector3D& Out, float AnimationTime, const 
     Out = Start + Factor * (End - Start);
 }
 
-void Model::ReadNodeHierarchy(float AnimationTime, const aiNode* pNode, const glm::mat4& ParentTransform) {
+void Model::ReadNodeHierarchy(float AnimationTime, const aiNode* pNode, const glm::mat4& ParentTransform, unsigned int animIndex) {
     std::string NodeName(pNode->mName.data);
-    const aiAnimation* pAnimation = scene->mAnimations[0];
+    const aiAnimation* pAnimation = scene->mAnimations[animIndex];
 
     glm::mat4 NodeTransformation = aiMatrixToGlm(pNode->mTransformation);
 
@@ -374,6 +404,6 @@ void Model::ReadNodeHierarchy(float AnimationTime, const aiNode* pNode, const gl
     }
 
     for (unsigned int i = 0; i < pNode->mNumChildren; i++) {
-        ReadNodeHierarchy(AnimationTime, pNode->mChildren[i], GlobalTransformation);
+        ReadNodeHierarchy(AnimationTime, pNode->mChildren[i], GlobalTransformation, animIndex);
     }
 }

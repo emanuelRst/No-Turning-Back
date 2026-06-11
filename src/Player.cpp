@@ -199,6 +199,15 @@ const GameObject* Player::FindBlockingObject(const std::vector<GameObject*>& col
     return nullptr;
 }
 
+Player::AnimState Player::GetAnimState() const {
+    if (hasCrashed) return AnimState::Die;
+    if (isWeakened) return AnimState::Hit;
+    if (!isGrounded) {
+        return (velocity.y > 0.0f) ? AnimState::Jump : AnimState::Fall;
+    }
+    return AnimState::Run;
+}
+
 void Player::SetHitboxFromModelAABB(const ModelAABB& aabb) {
     glm::vec3 size = aabb.max - aabb.min;
 
@@ -208,8 +217,11 @@ void Player::SetHitboxFromModelAABB(const ModelAABB& aabb) {
     size.y = std::max(std::abs(size.y), kMinSize);
     size.z = std::max(std::abs(size.z), kMinSize);
 
-    // Aplicar la escala global del jugador (hitbox = visual).
-    size *= kPlayerScale;
+    // Escalar usando la mayor dimensión del AABB para que el modelo quepa
+    // dentro de un cubo de lado kTargetHeight (independientemente de su orientación).
+    float maxExtent = std::max({std::abs(size.x), std::abs(size.y), std::abs(size.z)});
+    visualScale = (maxExtent > kMinSize) ? (kTargetHeight / maxExtent) : 1.0f;
+    size *= visualScale;
 
     // Anclar la hitbox a los pies: con centerOffset.y = size.y/2, los bounds del
     // player quedan [position, position + size], de modo que position.y es el suelo.

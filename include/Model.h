@@ -44,17 +44,21 @@ public:
     Model(const std::string& path);
     ~Model();
 
-    void Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float animationTime);
+    void Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float animationTime, unsigned int animIndex = 0);
 
-    // AABB calculado en espacio del asset (sin transformar por el modelo Matrix).
-    // Sirve para ajustar colisiones sin depender del tamaño/forma hardcodeada.
+    // AABB en espacio del asset (con transforms de nodos). Sirve para escenas estáticas.
     ModelAABB GetAABB() const { return modelAABB; }
+    // AABB en espacio del mesh (vértices crudos, sin transforms de nodos).
+    // Para modelos skinned el render usa huesos que cancelan los transforms del armature,
+    // por lo que este AABB refleja el tamaño real del modelo renderizado.
+    ModelAABB GetMeshAABB() const { return meshAABB; }
 
 private:
     std::vector<Mesh> meshes;
     std::string directory;
     std::vector<Texture> textures_loaded;
     ModelAABB modelAABB{};
+    ModelAABB meshAABB{};
 
     // Bone data
     std::map<std::string, unsigned int> boneMapping;
@@ -79,7 +83,7 @@ private:
     // Animation helpers
     void extractBoneWeightForMesh(aiMesh* mesh, Mesh& myMesh);
     glm::mat4 aiMatrixToGlm(const aiMatrix4x4& from);
-    void ReadNodeHierarchy(float AnimationTime, const aiNode* pNode, const glm::mat4& ParentTransform);
+    void ReadNodeHierarchy(float AnimationTime, const aiNode* pNode, const glm::mat4& ParentTransform, unsigned int animIndex = 0);
     const aiNodeAnim* FindNodeAnim(const aiAnimation* pAnimation, const std::string NodeName);
     void CalcInterpolatedRotation(aiQuaternion& Out, float AnimationTime, const aiNodeAnim* pNodeAnim);
     void CalcInterpolatedPosition(aiVector3D& Out, float AnimationTime, const aiNodeAnim* pNodeAnim);

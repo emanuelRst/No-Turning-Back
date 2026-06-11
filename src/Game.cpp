@@ -122,18 +122,18 @@ bool Game::Init() {
     helpMenu->Init("assets/fonts/Hippopotamus Apocalypse.otf");
 
     // Cargar modelo del jugador
-    playerModel = new Model("assets/models/run_forrest/scene.gltf");
+    playerModel = new Model("assets/models/soldier/Soldier.glb");
 
-    // Ajustar hitbox del jugador usando el AABB del modelo (calculado en Model via Assimp).
-    // Si la carga falla, el AABB cae al fallback unitario del Model y la hitbox
-    // resultante no sería representativa. En ese caso conservamos la provisional.
-    const ModelAABB loadedAABB = playerModel->GetAABB();
-    if (loadedAABB.min.x < loadedAABB.max.x && loadedAABB.min.y < loadedAABB.max.y) {
-        player.SetHitboxFromModelAABB(loadedAABB);
-        std::cout << "Player AABB loaded: min=(" << loadedAABB.min.x << "," << loadedAABB.min.y << "," << loadedAABB.min.z
-                  << ") max=(" << loadedAABB.max.x << "," << loadedAABB.max.y << "," << loadedAABB.max.z << ")" << std::endl;
+    // Ajustar hitbox del jugador usando el AABB en espacio del mesh (vértices crudos).
+    // Para modelos skinned los transforms de nodo se cancelan vía huesos en bind pose,
+    // por lo que el meshAABB refleja el tamaño real del modelo renderizado.
+    const ModelAABB loadedMeshAABB = playerModel->GetMeshAABB();
+    if (loadedMeshAABB.min.x < loadedMeshAABB.max.x && loadedMeshAABB.min.y < loadedMeshAABB.max.y) {
+        player.SetHitboxFromModelAABB(loadedMeshAABB);
+        std::cout << "Player mesh AABB: min=(" << loadedMeshAABB.min.x << "," << loadedMeshAABB.min.y << "," << loadedMeshAABB.min.z
+                  << ") max=(" << loadedMeshAABB.max.x << "," << loadedMeshAABB.max.y << "," << loadedMeshAABB.max.z << ")" << std::endl;
     } else {
-        std::cerr << "WARN: player model AABB invalid, keeping provisional hitbox." << std::endl;
+        std::cerr << "WARN: player mesh AABB invalid, keeping provisional hitbox." << std::endl;
     }
 
     // Configurar callback
@@ -629,18 +629,27 @@ void Game::RenderGameScene() {
 
     if (playerModel) {
         glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 1);
-        const ModelAABB& modelAABB = playerModel->GetAABB();
-        const float translateY = pos.y - modelAABB.min.y * Player::kPlayerScale;
+        const ModelAABB& meshAABB = playerModel->GetMeshAABB();
+        const float scale = player.GetVisualScale();
+        const float translateY = pos.y - meshAABB.min.y * scale;
         glm::mat4 visualModel = glm::translate(glm::mat4(1.0f),
                                                glm::vec3(pos.x, translateY, pos.z));
         visualModel = glm::rotate(visualModel, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        visualModel = glm::scale(visualModel, glm::vec3(Player::kPlayerScale));
+        visualModel = glm::scale(visualModel, glm::vec3(scale));
         if (player.IsWeakened()) {
             glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 0.6f, 0.2f);
         } else {
             glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 1.0f, 1.0f);
         }
-        playerModel->Draw(shaderProgram, visualModel, (float)glfwGetTime());
+        unsigned int animIndex = 4;
+        switch (player.GetAnimState()) {
+            case Player::AnimState::Jump: animIndex = 3; break;
+            case Player::AnimState::Fall: animIndex = 1; break;
+            case Player::AnimState::Hit:  animIndex = 2; break;
+            case Player::AnimState::Die:  animIndex = 0; break;
+            default:                      animIndex = 4; break;
+        }
+        playerModel->Draw(shaderProgram, visualModel, (float)glfwGetTime(), animIndex);
     } else {
         glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 0);
         glm::mat4 playerCube = glm::translate(glm::mat4(1.0f),

@@ -11,9 +11,14 @@
 // solo necesita su posicion, velocidad e hitbox.
 class Player : public GameObject {
 public:
-    // Escala uniforme aplicada al jugador (hitbox + visual) al cargar el AABB.
-    // Permite reducir la silueta del personaje sin tocar el asset original.
-    static constexpr float kPlayerScale = 0.7f;
+    enum class AnimState { Run, Jump, Fall, Hit, Die };
+
+    // Altura objetivo del jugador en unidades del mundo. El modelo se escala
+    // dinámicamente desde su AABB para alcanzar esta altura.
+    static constexpr float kTargetHeight = 1.2f;
+
+    // Escala visual calculada al cargar el modelo desde su AABB.
+    float GetVisualScale() const { return visualScale; }
 
     Player();
 
@@ -36,6 +41,7 @@ public:
     bool HasCrashed() const { return hasCrashed; }
     bool IsWeakened() const { return isWeakened; }
     float GetWeakenedTimer() const { return weakenedTimer; }
+    AnimState GetAnimState() const;
 
 public:
     // Ajusta la hitbox del jugador usando un AABB calculado del modelo.
@@ -56,6 +62,8 @@ private:
     bool hasCrashed;
     bool isWeakened;
     float weakenedTimer;
+
+    float visualScale = 0.7f;
 
     const float jumpForce = 8.0f;
     const float gravity = 20.0f;
