@@ -681,6 +681,7 @@ void Game::RenderGameScene() {
     }
 
     // Dibujar Trenes
+    glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 0);
     glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.85f, 0.2f, 0.12f);
     glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
     glBindVertexArray(VAO);
