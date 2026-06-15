@@ -6,6 +6,8 @@
 #include "GameObject.h"
 #include "Player.h"
 #include "Train.h"
+#include "ObstacleOverhead.h"
+#include "RampTrain.h"
 #include "Model.h"
 
 #include <vector>
@@ -64,6 +66,8 @@ private:
     unsigned int VAO;
     Model* playerModel;
     std::vector<Train> trains;
+    std::vector<ObstacleOverhead> overheadObstacles;
+    std::vector<RampTrain> rampTrains;
     std::vector<GroundSegment> groundSegments;
     int nextTrainLane;
 

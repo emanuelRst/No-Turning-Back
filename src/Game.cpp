@@ -472,13 +472,19 @@ void Game::Update(float deltaTime) {
     UpdateGround(deltaTime, currentSpeed);
 
     std::vector<GameObject*> collisionObjects;
-    collisionObjects.reserve(trains.size());
+    collisionObjects.reserve(trains.size() + overheadObstacles.size() + rampTrains.size());
     for (Train& train : trains) {
         collisionObjects.push_back(&train);
     }
-
+    for (auto& obs : overheadObstacles) {
+        collisionObjects.push_back(&obs);
+    }
+    for (auto& ramp : rampTrains) {
+        collisionObjects.push_back(&ramp);
+    }
     player.Update(deltaTime, collisionObjects);
 }
+
 
 void Game::UpdateTrains(float deltaTime, float currentSpeed) {
     const float playerZ = player.GetPosition().z;
@@ -525,6 +531,14 @@ void Game::ResetRun() {
         Train(1, playerZ - kTrainSpawnDistance, trainSize, kBaseTrainSpeed),
         Train(0, playerZ - kTrainSpawnDistance - kTrainSpacing, trainSize, kBaseTrainSpeed),
         Train(2, playerZ - kTrainSpawnDistance - kTrainSpacing * 2.0f, trainSize, kBaseTrainSpeed)
+    };
+
+    // Agregar obstáculos de prueba
+    overheadObstacles = {
+        ObstacleOverhead(glm::vec3(0.0f, 1.5f, playerZ - 30.0f), glm::vec3(2.5f, 0.5f, 1.0f))
+    };
+    rampTrains = {
+        RampTrain(glm::vec3(3.0f, 0.0f, playerZ - 40.0f), glm::vec3(2.0f, 1.0f, 4.0f))
     };
 
     // Inicializar suelo (ancho suficiente para cubrir la vía completa + margen).
@@ -666,9 +680,8 @@ void Game::RenderGameScene() {
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }
 
-    glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 0);
+    // Dibujar Trenes
     glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.85f, 0.2f, 0.12f);
-    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
     glBindVertexArray(VAO);
     for (const Train& train : trains) {
         const glm::vec3 tp = train.GetPosition();
@@ -676,6 +689,28 @@ void Game::RenderGameScene() {
         glm::mat4 trainModel = glm::translate(glm::mat4(1.0f), tp);
         trainModel = glm::scale(trainModel, ts * kCubeScaleFactor);
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(trainModel));
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+    }
+
+    // Dibujar Obstaculos Overhead
+    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.2f, 0.8f, 0.2f);
+    for (const auto& obs : overheadObstacles) {
+        const glm::vec3 op = obs.GetPosition();
+        const glm::vec3 os = obs.GetHitboxSize();
+        glm::mat4 obsModel = glm::translate(glm::mat4(1.0f), op);
+        obsModel = glm::scale(obsModel, os * kCubeScaleFactor);
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(obsModel));
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+    }
+
+    // Dibujar Rampas
+    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.2f, 0.2f, 0.8f);
+    for (const auto& ramp : rampTrains) {
+        const glm::vec3 rp = ramp.GetPosition();
+        const glm::vec3 rs = ramp.GetHitboxSize();
+        glm::mat4 rampModel = glm::translate(glm::mat4(1.0f), rp);
+        rampModel = glm::scale(rampModel, rs * kCubeScaleFactor);
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(rampModel));
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }
 
