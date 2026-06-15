@@ -1,4 +1,6 @@
 #include "Player.h"
+#include "States.h"
+#include "RampTrain.h"
 #include <algorithm>
 #include <limits>
 #include <vector>
@@ -26,8 +28,15 @@ Player::Player()
       hasCrashed(false),
       isWeakened(false),
       weakenedTimer(0.0f),
-      previousLane(1) {
+      previousLane(1),
+      currentState(std::make_unique<RunningState>()) {
     Reset();
+}
+
+void Player::SetState(std::unique_ptr<CharacterState> newState) {
+    if (currentState) currentState->OnExit(*this);
+    currentState = std::move(newState);
+    currentState->OnEnter(*this);
 }
 
 void Player::Update(float deltaTime) {
@@ -40,6 +49,10 @@ void Player::Update(float deltaTime, const std::vector<GameObject*>& collisionOb
     // Despues de un choque se congela la simulacion hasta que Game haga ResetRun().
     if (hasCrashed) {
         return;
+    }
+
+    if (currentState) {
+        currentState->Update(*this, deltaTime);
     }
 
     // Actualizar timer de estado debilitado
@@ -124,6 +137,20 @@ void Player::UpdatePhysics(float deltaTime, const std::vector<GameObject*>& coll
     // Si no aterrizo sobre el techo, una interseccion completa cuenta como choque.
     const GameObject* blocker = FindBlockingObject(collisionObjects);
     if (blocker != nullptr) {
+        // Verificar si es una rampa
+        if (auto ramp = dynamic_cast<const RampTrain*>(blocker)) {
+            // Ajustar posición Y basada en la rampa
+            float newY = ramp->GetHeightAt(position.z);
+            // Solo ajustar si la rampa es mas alta que la posicion actual
+            if (newY > position.y) {
+                 Move(glm::vec3(0.0f, newY - position.y, 0.0f));
+            }
+            isGrounded = true;
+            isJumping = false;
+            velocity.y = 0.0f;
+            return;
+        }
+
         if (isWeakened) {
             // Segundo golpe mientras debilitado: muerte
             hasCrashed = true;
@@ -291,6 +318,20 @@ void Player::MoveRight() {
 void Player::FastFall() {
     if (!hasCrashed && !isGrounded) {
         velocity.y = -15.0f;
+    }
+}
+
+void Player::InputS() {
+    if (isGrounded) {
+        Roll();
+    } else {
+        FastFall();
+    }
+}
+
+void Player::Roll() {
+    if (!hasCrashed && isGrounded && dynamic_cast<RunningState*>(currentState.get())) {
+        SetState(std::make_unique<RollingState>());
     }
 }
 

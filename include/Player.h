@@ -3,9 +3,9 @@
 
 #include "GameObject.h"
 #include "Model.h"
+#include "CharacterState.h"
 #include <vector>
-
-
+#include <memory>
 
 // Player es otro GameObject: su modelo visual puede cambiar, pero la fisica
 // solo necesita su posicion, velocidad e hitbox.
@@ -22,6 +22,8 @@ public:
 
     Player();
 
+    void SetState(std::unique_ptr<CharacterState> newState);
+
     // Update sin objetos mantiene compatibilidad con pruebas simples.
     void Update(float deltaTime) override;
     // collisionObjects son objetos genericos con hitbox, no necesariamente trenes.
@@ -32,6 +34,8 @@ public:
     void MoveRight();
     void Jump();
     void FastFall();
+    void Roll();
+    void InputS(); // Nueva funcion de entrada
     void Reset();
 
     // Tamano actual de la hitbox. El renderer temporal lo usa para escalar el cubo.
@@ -76,6 +80,8 @@ private:
     const GameObject* FindObjectUnderPlayer(const std::vector<GameObject*>& collisionObjects) const;
     // Bloqueo usa interseccion AABB completa para detectar choque contra el cuerpo.
     const GameObject* FindBlockingObject(const std::vector<GameObject*>& collisionObjects) const;
+
+    std::unique_ptr<CharacterState> currentState;
 };
 
 #endif

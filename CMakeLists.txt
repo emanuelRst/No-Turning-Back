@@ -49,12 +49,15 @@ endif()
 add_executable(EndlessRunner 
     src/GameObject.cpp
     src/Train.cpp
+    src/ObstacleOverhead.cpp
+    src/RampTrain.cpp
     src/Player.cpp 
     src/Game.cpp 
     src/main.cpp 
     src/Model.cpp
     src/Menu.cpp
     src/AudioManager.cpp
+    src/States.cpp
     vendor/glad/glad.c
 )
 

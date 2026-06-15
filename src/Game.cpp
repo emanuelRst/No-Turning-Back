@@ -358,7 +358,7 @@ void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, in
             if (key == GLFW_KEY_A || key == GLFW_KEY_LEFT) instance->player.MoveLeft();
             if (key == GLFW_KEY_D || key == GLFW_KEY_RIGHT) instance->player.MoveRight();
             if (key == GLFW_KEY_SPACE || key == GLFW_KEY_W) instance->player.Jump();
-            if (key == GLFW_KEY_S) instance->player.FastFall();
+            if (key == GLFW_KEY_S || key == GLFW_KEY_DOWN) instance->player.InputS();
         } else if (instance->currentState == GameState::PAUSED) {
             instance->pauseMenu->HandleKeyEvent(key);
         } else if (instance->currentState == GameState::HELP) {
