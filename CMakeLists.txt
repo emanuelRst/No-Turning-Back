@@ -47,6 +47,7 @@ endif()
 
 # Crear el ejecutable del Runner
 add_executable(EndlessRunner 
+    src/LevelGenerator.cpp
     src/GameObject.cpp
     src/Train.cpp
     src/ObstacleOverhead.cpp

@@ -5,9 +5,7 @@
 #include <GLFW/glfw3.h>
 #include "GameObject.h"
 #include "Player.h"
-#include "Train.h"
-#include "ObstacleOverhead.h"
-#include "RampTrain.h"
+#include "LevelGenerator.h"
 #include "Model.h"
 
 #include <vector>
@@ -65,11 +63,8 @@ private:
     unsigned int menuShaderProgram;
     unsigned int VAO;
     Model* playerModel;
-    std::vector<Train> trains;
-    std::vector<ObstacleOverhead> overheadObstacles;
-    std::vector<RampTrain> rampTrains;
+    LevelGenerator levelGen;
     std::vector<GroundSegment> groundSegments;
-    int nextTrainLane;
 
     float gameTime;
     float groundScroll;

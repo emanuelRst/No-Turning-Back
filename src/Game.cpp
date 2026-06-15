@@ -25,24 +25,15 @@ static std::string ReadFile(const std::string& path) {
 
 namespace {
 constexpr float kRenderGroundY = 0.0f;
-constexpr float kTrainWidth = 1.20f;
-constexpr float kTrainHeight = 1.15f;
-constexpr float kTrainDepth = 5.0f;
 constexpr float kBaseTrainSpeed = 20.0f;
-// Rampa de velocidad: la velocidad crece sin tope. Con 300s tarda 5 minutos
-// en duplicar la base (de 20 a 40 m/s) y se sigue incrementando linealmente.
 constexpr float kSpeedRampTime = 300.0f;
-constexpr float kTrainSpawnDistance = 50.0f;
-constexpr float kTrainSpacing = 16.0f;
-constexpr float kTrainDespawnDistance = 8.0f;
-// Nuevas constantes para el suelo
 constexpr float kGroundSegmentLength = 20.0f;
 constexpr int kNumGroundSegments = 5;
 }
 
 Game::Game(int w, int h)
     : window(nullptr), width(w), height(h), shaderProgram(0), VAO(0),
-      playerModel(nullptr), trains(), nextTrainLane(0), gameTime(0.0f), groundScroll(0.0f),
+      playerModel(nullptr), gameTime(0.0f), groundScroll(0.0f),
       currentState(GameState::MENU), menu(new Menu()), gameOverMenu(new Menu()), pauseMenu(new Menu()), helpMenu(new Menu()) {
     instance = this;
 
@@ -468,86 +459,27 @@ void Game::Update(float deltaTime) {
     float currentSpeed = GetCurrentSpeed();
     groundScroll += currentSpeed * deltaTime;
 
-    UpdateTrains(deltaTime, currentSpeed);
+    const float playerZ = player.GetPosition().z;
+    levelGen.Update(deltaTime, currentSpeed, playerZ, gameTime);
     UpdateGround(deltaTime, currentSpeed);
 
-    // Mover obstáculos hacia el jugador
-    for (auto& obs : overheadObstacles) {
-        obs.Move(glm::vec3(0.0f, 0.0f, currentSpeed * deltaTime));
-    }
-    for (auto& ramp : rampTrains) {
-        ramp.Move(glm::vec3(0.0f, 0.0f, currentSpeed * deltaTime));
-    }
-
-    std::vector<GameObject*> collisionObjects;
-    collisionObjects.reserve(trains.size() + overheadObstacles.size() + rampTrains.size());
-    for (Train& train : trains) {
-        collisionObjects.push_back(&train);
-    }
-    for (auto& obs : overheadObstacles) {
-        collisionObjects.push_back(&obs);
-    }
-    for (auto& ramp : rampTrains) {
-        collisionObjects.push_back(&ramp);
-    }
+    std::vector<GameObject*> collisionObjects = levelGen.GetCollisionObjects();
     player.Update(deltaTime, collisionObjects);
 }
 
-
-void Game::UpdateTrains(float deltaTime, float currentSpeed) {
-    const float playerZ = player.GetPosition().z;
-
-    for (Train& train : trains) {
-        train.SetSpeed(currentSpeed);
-        train.Update(deltaTime);
-
-        if (train.BackEdgeZ() > playerZ + kTrainDespawnDistance) {
-            ResetTrain(train);
-        }
-    }
-}
 
 void Game::UpdateGround(float /*deltaTime*/, float /*currentSpeed*/) {
     // El suelo se desplaza visualmente mediante groundScroll en Render().
     // Los segmentos permanecen en su posicion inicial, evitando saltos visuales.
 }
 
-void Game::ResetTrain(Train& train) {
-    float farthestZ = player.GetPosition().z - kTrainSpawnDistance;
-    for (const Train& other : trains) {
-        if (&other == &train) {
-            continue;
-        }
-
-        farthestZ = std::min(farthestZ, other.GetPosition().z);
-    }
-
-    train.Reset(nextTrainLane, farthestZ - kTrainSpacing,
-                glm::vec3(kTrainWidth, kTrainHeight, kTrainDepth), kBaseTrainSpeed);
-    nextTrainLane = (nextTrainLane + 2) % 3;
-}
-
 void Game::ResetRun() {
     player.Reset();
-    nextTrainLane = 0;
     gameTime = 0.0f;
     groundScroll = 0.0f;
 
-    const glm::vec3 trainSize(kTrainWidth, kTrainHeight, kTrainDepth);
     const float playerZ = player.GetPosition().z;
-    trains = {
-        Train(1, playerZ - kTrainSpawnDistance, trainSize, kBaseTrainSpeed),
-        Train(0, playerZ - kTrainSpawnDistance - kTrainSpacing, trainSize, kBaseTrainSpeed),
-        Train(2, playerZ - kTrainSpawnDistance - kTrainSpacing * 2.0f, trainSize, kBaseTrainSpeed)
-    };
-
-    // Agregar obstáculos de prueba
-    overheadObstacles = {
-        ObstacleOverhead(glm::vec3(0.0f, 1.5f, playerZ - 30.0f), glm::vec3(2.5f, 0.5f, 1.0f))
-    };
-    rampTrains = {
-        RampTrain(glm::vec3(3.0f, 0.0f, playerZ - 40.0f), glm::vec3(2.0f, 1.0f, 4.0f))
-    };
+    levelGen.Reset(playerZ);
 
     // Inicializar suelo (ancho suficiente para cubrir la vía completa + margen).
     constexpr float kGroundWidth = 8.0f;
@@ -693,7 +625,7 @@ void Game::RenderGameScene() {
     glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.85f, 0.2f, 0.12f);
     glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
     glBindVertexArray(VAO);
-    for (const Train& train : trains) {
+    for (const Train& train : levelGen.GetTrains()) {
         const glm::vec3 tp = train.GetPosition();
         const glm::vec3 ts = train.GetHitboxSize();
         glm::mat4 trainModel = glm::translate(glm::mat4(1.0f), tp);
@@ -705,7 +637,7 @@ void Game::RenderGameScene() {
     // Dibujar Obstaculos Overhead
     glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.2f, 0.8f, 0.2f);
     glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
-    for (const auto& obs : overheadObstacles) {
+    for (const auto& obs : levelGen.GetOverheads()) {
         const glm::vec3 op = obs.GetPosition();
         const glm::vec3 os = obs.GetHitboxSize();
         glm::mat4 obsModel = glm::translate(glm::mat4(1.0f), op);
@@ -717,7 +649,7 @@ void Game::RenderGameScene() {
     // Dibujar Rampas
     glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.2f, 0.2f, 0.8f);
     glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
-    for (const auto& ramp : rampTrains) {
+    for (const auto& ramp : levelGen.GetRamps()) {
         const glm::vec3 rp = ramp.GetPosition();
         const glm::vec3 rs = ramp.GetHitboxSize();
         glm::mat4 rampModel = glm::translate(glm::mat4(1.0f), rp);
