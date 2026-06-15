@@ -471,6 +471,14 @@ void Game::Update(float deltaTime) {
     UpdateTrains(deltaTime, currentSpeed);
     UpdateGround(deltaTime, currentSpeed);
 
+    // Mover obstáculos hacia el jugador
+    for (auto& obs : overheadObstacles) {
+        obs.Move(glm::vec3(0.0f, 0.0f, currentSpeed * deltaTime));
+    }
+    for (auto& ramp : rampTrains) {
+        ramp.Move(glm::vec3(0.0f, 0.0f, currentSpeed * deltaTime));
+    }
+
     std::vector<GameObject*> collisionObjects;
     collisionObjects.reserve(trains.size() + overheadObstacles.size() + rampTrains.size());
     for (Train& train : trains) {
