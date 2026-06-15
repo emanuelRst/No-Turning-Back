@@ -682,6 +682,7 @@ void Game::RenderGameScene() {
 
     // Dibujar Trenes
     glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.85f, 0.2f, 0.12f);
+    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
     glBindVertexArray(VAO);
     for (const Train& train : trains) {
         const glm::vec3 tp = train.GetPosition();
@@ -694,6 +695,7 @@ void Game::RenderGameScene() {
 
     // Dibujar Obstaculos Overhead
     glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.2f, 0.8f, 0.2f);
+    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
     for (const auto& obs : overheadObstacles) {
         const glm::vec3 op = obs.GetPosition();
         const glm::vec3 os = obs.GetHitboxSize();
@@ -705,6 +707,7 @@ void Game::RenderGameScene() {
 
     // Dibujar Rampas
     glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.2f, 0.2f, 0.8f);
+    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
     for (const auto& ramp : rampTrains) {
         const glm::vec3 rp = ramp.GetPosition();
         const glm::vec3 rs = ramp.GetHitboxSize();
