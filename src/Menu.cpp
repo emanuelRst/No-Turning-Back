@@ -279,7 +279,7 @@ void Menu::Render(unsigned int shaderProgram, unsigned int quadVAO, int width, i
 
     // Dibujar texto directamente
     for (const auto& button : buttons) {
-        glm::vec3 color = button.isHovered ? glm::vec3(0.0f, 0.5f, 0.8f) : glm::vec3(1.0f, 1.0f, 1.0f);
+        glm::vec3 color = button.isHovered ? glm::vec3(1.0f, 0.0f, 0.0f) : glm::vec3(1.0f, 1.0f, 1.0f);
         // Usar la escala suavizada
         float scale = button.currentScale;
         // Usar button.x y button.y como centro

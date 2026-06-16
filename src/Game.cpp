@@ -39,21 +39,37 @@ Game::Game(int w, int h)
 
     float buttonWidth = 250.0f;
     
-    // Configurar botones del menú (Tamaño 600x150)
-    menu->AddButton("Start Game", 660 + buttonWidth, 200, 600, 150, [this](){ 
-        this->ResetRun();
-        this->currentState = GameState::PLAYING;
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+   int targetButtonWidth = 400;  // Ancho óptimo centrado dentro del monitor
+    int targetButtonHeight = 20; // Alto reducido para que quepan los 5 botones
+    int fixedX = 953;             // Posición X calculada para centrado perfecto
+
+// Botón 1: Start Game (Y: 620)
+    menu->AddButton("Start Game", fixedX, 625, targetButtonWidth, targetButtonHeight, [this](){ 
+    this->ResetRun();
+    this->currentState = GameState::PLAYING;
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     }, "assets/audio/Menu/MenuEfecto.wav");
-    menu->AddButton("Change Characters", 680 + buttonWidth, 370, 600, 150, [](){ std::cout << "Characters\n"; }, "assets/audio/Menu/MenuEfecto.wav");
-    menu->AddButton("Help", 660 + buttonWidth, 540, 600, 150, [this](){
+
+    // Botón 2: Change Characters (Y: 675)
+    menu->AddButton("Change Characters", fixedX, 690, targetButtonWidth, targetButtonHeight, [](){ 
+        std::cout << "Characters\n"; 
+    }, "assets/audio/Menu/MenuEfecto.wav");
+
+    // Botón 3: Help (Y: 730)
+    menu->AddButton("Help", fixedX, 775, targetButtonWidth, targetButtonHeight, [this](){
         this->currentState = GameState::HELP;
     }, "assets/audio/Menu/MenuEfecto.wav");
-    menu->AddButton("Credits", 660 + buttonWidth, 710, 600, 150, [](){ std::cout << "Credits\n"; }, "assets/audio/Menu/MenuEfecto.wav");
-    menu->AddButton("Exit", 660 + buttonWidth, 880, 600, 150, [this](){
+
+    // Botón 4: Credits (Y: 785)
+    menu->AddButton("Credits", fixedX, 840, targetButtonWidth, targetButtonHeight, [](){ 
+        std::cout << "Credits\n"; 
+    }, "assets/audio/Menu/MenuEfecto.wav");
+
+    // Botón 5: Exit (Y: 840)
+    menu->AddButton("Exit", fixedX, 900, targetButtonWidth, targetButtonHeight, [this](){
         glfwSetWindowShouldClose(this->window, true);
     }, "assets/audio/Menu/MenuEfecto.wav");
-    
+
     // Configurar botones de Game Over (uno al lado del otro, más abajo)
     float gameOverY = 700.0f;
     float btnGap = 400.0f;
