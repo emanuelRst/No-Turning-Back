@@ -67,6 +67,7 @@ private:
     bool hasCrashed;
     bool isWeakened;
     float weakenedTimer;
+    float lateralCooldownTimer = 0.0f;
     bool hitFromLeft = false;
 
     float visualScale = 0.7f;

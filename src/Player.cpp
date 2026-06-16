@@ -29,6 +29,7 @@ Player::Player()
       hasCrashed(false),
       isWeakened(false),
       weakenedTimer(0.0f),
+      lateralCooldownTimer(0.0f),
       previousLane(1),
       currentState(std::make_unique<RunningState>()) {
     Reset();
@@ -63,6 +64,11 @@ void Player::Update(float deltaTime, const std::vector<GameObject*>& collisionOb
             isWeakened = false;
             weakenedTimer = 0.0f;
         }
+    }
+
+    // Actualizar timer de invulnerabilidad post-choque lateral
+    if (lateralCooldownTimer > 0.0f) {
+        lateralCooldownTimer -= deltaTime;
     }
 
     UpdateLaneMovement(deltaTime);
@@ -138,6 +144,11 @@ void Player::UpdatePhysics(float deltaTime, const std::vector<GameObject*>& coll
     // Si no aterrizo sobre el techo, una interseccion completa cuenta como choque.
     const GameObject* blocker = FindBlockingObject(collisionObjects);
     if (blocker != nullptr) {
+        // Ignorar colisiones durante el breve periodo de invulnerabilidad post-choque lateral
+        if (lateralCooldownTimer > 0.0f) {
+            return;
+        }
+
         // Verificar si es una rampa
         if (auto ramp = dynamic_cast<const RampTrain*>(blocker)) {
             // Ajustar posición Y basada en la rampa
@@ -153,9 +164,13 @@ void Player::UpdatePhysics(float deltaTime, const std::vector<GameObject*>& coll
         }
 
         // Determinar dirección del choque
-        // Nueva lógica: si estamos en el mismo carril (X similar), es frontal.
-        float distanceX = std::abs(position.x - blocker->GetPosition().x);
-        bool isFrontal = distanceX < 1.0f; // Umbral basado en el ancho del carril
+        // Frontal: el solapamiento X es más de la mitad del ancho del jugador
+        Bounds blockerBounds = blocker->GetBounds();
+        float playerHalfW = GetHitboxSize().x * 0.5f;
+        float overlapLeft = std::max(position.x - playerHalfW, blockerBounds.min.x);
+        float overlapRight = std::min(position.x + playerHalfW, blockerBounds.max.x);
+        float overlapX = std::max(0.0f, overlapRight - overlapLeft);
+        bool isFrontal = overlapX > playerHalfW;
 
         if (isFrontal) {
             hasCrashed = true;
@@ -172,12 +187,13 @@ void Player::UpdatePhysics(float deltaTime, const std::vector<GameObject*>& coll
             isOnObject = false;
         } else {
             // Primer golpe lateral: entra en estado debilitado y vuelve al carril anterior
+            hitFromLeft = position.x < blocker->GetPosition().x;
             currentLane = previousLane;
             targetX = LaneX(currentLane);
-            // Determinar direccion del choque para la animacion
-            hitFromLeft = position.x < blocker->GetPosition().x;
+            position.x = targetX; // Snap inmediato para salir de la zona de colisión
             isWeakened = true;
             weakenedTimer = 5.0f;
+            lateralCooldownTimer = 0.5f;
         }
     }
 }
@@ -312,6 +328,7 @@ void Player::Reset() {
     hasCrashed = false;
     isWeakened = false;
     weakenedTimer = 0.0f;
+    lateralCooldownTimer = 0.0f;
     hitFromLeft = false;
     previousLane = 1;
 }
