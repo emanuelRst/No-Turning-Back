@@ -43,7 +43,10 @@ Game::Game(int w, int h)
     menu->AddButton("Start Game", 660 + buttonWidth, 200, 600, 150, [this](){ 
         this->ResetRun();
         this->currentState = GameState::PLAYING;
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        this->gameStartTimer = 4.0f;
+        this->animStateStartTime = glfwGetTime();
+        this->lastAnimState = Player::AnimState::Dance;
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     }, "assets/audio/Menu/MenuEfecto.wav");
     menu->AddButton("Change Characters", 680 + buttonWidth, 370, 600, 150, [](){ std::cout << "Characters\n"; }, "assets/audio/Menu/MenuEfecto.wav");
     menu->AddButton("Help", 660 + buttonWidth, 540, 600, 150, [this](){
@@ -113,7 +116,7 @@ bool Game::Init() {
     helpMenu->Init("assets/fonts/Hippopotamus Apocalypse.otf");
 
     // Cargar modelo del jugador
-    playerModel = new Model("assets/models/soldier/Soldier.glb");
+    playerModel = new Model("assets/models/thug/tung.glb");
 
     // Ajustar hitbox del jugador usando el AABB en espacio del mesh (vértices crudos).
     // Para modelos skinned los transforms de nodo se cancelan vía huesos en bind pose,
@@ -343,6 +346,8 @@ void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, in
         } else if (instance->currentState == GameState::PLAYING) {
             if (key == GLFW_KEY_R && instance->player.HasCrashed()) {
                 instance->ResetRun();
+                instance->currentState = GameState::PLAYING;
+                glfwSetInputMode(instance->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
                 return;
             }
 
@@ -444,6 +449,18 @@ void Game::Update(float deltaTime) {
         return;
     }
 
+    if (currentState == GameState::PLAYING) {
+        // Si estamos en la fase inicial de emote, no actualizar gameplay
+        if (gameStartTimer > 0.0f) {
+            gameStartTimer -= deltaTime;
+            if (gameStartTimer <= 0.0f) {
+                gameStartTimer = 0.0f;
+                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            }
+            return;
+        }
+    }
+
     if (player.HasCrashed()) {
         if (currentState != GameState::GAME_OVER) {
             currentState = GameState::GAME_OVER;
@@ -476,6 +493,7 @@ void Game::UpdateGround(float /*deltaTime*/, float /*currentSpeed*/) {
 void Game::ResetRun() {
     player.Reset();
     gameTime = 0.0f;
+    gameStartTimer = 0.0f;
     groundScroll = 0.0f;
 
     const float playerZ = player.GetPosition().z;
@@ -587,17 +605,32 @@ void Game::RenderGameScene() {
         bool loop = true;
         Player::AnimState animState = player.GetAnimState();
 
+        // Sobreescribir animacion para Dance si estamos en emote inicial o pausa
+        if (gameStartTimer > 0.0f || currentState == GameState::PAUSED) {
+            animState = Player::AnimState::Dance;
+        }
+
         switch (animState) {
-            case Player::AnimState::Jump: animName = "Fall"; break; // Fall como fallback para Jump
-            case Player::AnimState::Fall: animName = "Fall"; break;
-            case Player::AnimState::Hit:  animName = "HitOnSide"; loop = false; break;
-            case Player::AnimState::Die:  animName = "Die"; break;
+            case Player::AnimState::Jump: animName = "JumpUp"; break;
+            case Player::AnimState::Fall: animName = "JumpDown"; break;
+            case Player::AnimState::Hit:  animName = player.GetHitFromLeft() ? "HitOnRight" : "HitOnLeft"; loop = false; break;
+            case Player::AnimState::Die:  animName = ""; break;
+            case Player::AnimState::Roll: animName = "Roll"; loop = false; break;
+            case Player::AnimState::Dance: animName = "Dance"; loop = true; break;
             default:                      animName = "Run"; break;
         }
 
-        float animTime = (float)glfwGetTime();
+        // Reiniciar tiempo de animacion si el estado cambio
+        if (animState != lastAnimState) {
+            animStateStartTime = glfwGetTime();
+            lastAnimState = animState;
+        }
+
+        float animTime = (float)(glfwGetTime() - animStateStartTime);
         if (animState == Player::AnimState::Hit) {
             animTime = 5.0f - player.GetWeakenedTimer();
+        } else if (animState == Player::AnimState::Dance && gameStartTimer > 0.0f) {
+            animTime = 4.0f - gameStartTimer;
         }
         
         playerModel->Draw(shaderProgram, visualModel, animTime, animName, loop);

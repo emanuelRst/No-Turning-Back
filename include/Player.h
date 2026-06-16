@@ -11,7 +11,7 @@
 // solo necesita su posicion, velocidad e hitbox.
 class Player : public GameObject {
 public:
-    enum class AnimState { Run, Jump, Fall, Hit, Die };
+    enum class AnimState { Run, Jump, Fall, Hit, Die, Roll, Dance };
 
     // Altura objetivo del jugador en unidades del mundo. El modelo se escala
     // dinámicamente desde su AABB para alcanzar esta altura.
@@ -45,6 +45,7 @@ public:
     bool HasCrashed() const { return hasCrashed; }
     bool IsWeakened() const { return isWeakened; }
     float GetWeakenedTimer() const { return weakenedTimer; }
+    bool GetHitFromLeft() const { return hitFromLeft; }
     AnimState GetAnimState() const;
 
 public:
@@ -66,6 +67,7 @@ private:
     bool hasCrashed;
     bool isWeakened;
     float weakenedTimer;
+    bool hitFromLeft = false;
 
     float visualScale = 0.7f;
 

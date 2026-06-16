@@ -68,6 +68,9 @@ private:
 
     float gameTime;
     float groundScroll;
+    float gameStartTimer = 0.0f;
+    double animStateStartTime = 0.0;
+    Player::AnimState lastAnimState = Player::AnimState::Run;
 
     // Instancia estática para acceder desde el callback
     unsigned int groundVAO, groundVBO, groundEBO;

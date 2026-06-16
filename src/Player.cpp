@@ -174,6 +174,8 @@ void Player::UpdatePhysics(float deltaTime, const std::vector<GameObject*>& coll
             // Primer golpe lateral: entra en estado debilitado y vuelve al carril anterior
             currentLane = previousLane;
             targetX = LaneX(currentLane);
+            // Determinar direccion del choque para la animacion
+            hitFromLeft = position.x < blocker->GetPosition().x;
             isWeakened = true;
             weakenedTimer = 5.0f;
         }
@@ -241,13 +243,16 @@ const GameObject* Player::FindBlockingObject(const std::vector<GameObject*>& col
 Player::AnimState Player::GetAnimState() const {
     if (hasCrashed) return AnimState::Die;
     
-    // Si esta debilitado, solo mostrar hit si la animacion no ha terminado
     if (isWeakened) {
         float timeSinceHit = 5.0f - weakenedTimer;
-        float hitDuration = 0.5f; // Ajustar o consultar duración del modelo si es posible
+        float hitDuration = 0.5f;
         if (timeSinceHit < hitDuration) {
             return AnimState::Hit;
         }
+    }
+
+    if (dynamic_cast<RollingState*>(currentState.get())) {
+        return AnimState::Roll;
     }
     
     if (!isGrounded) {
@@ -307,6 +312,7 @@ void Player::Reset() {
     hasCrashed = false;
     isWeakened = false;
     weakenedTimer = 0.0f;
+    hitFromLeft = false;
     previousLane = 1;
 }
 
