@@ -95,7 +95,7 @@ Game::Game(int w, int h)
     }, "assets/audio/Menu/MenuEfecto.wav");
 
     // Configurar boton de Ayuda
-    helpMenu->AddButton("Back", (float)width / 2.0f, (float)height - 100.0f, 300, 100, [this](){
+    helpMenu->AddButton("Back", ((float)width / 2.0f) + 567.0f, (float)height + 300.0f, 300, 100, [this](){
         this->currentState = GameState::MENU;
     }, "assets/audio/Menu/MenuEfecto.wav");
 
@@ -188,7 +188,7 @@ bool Game::Init() {
          1.0f,  1.0f, 1.0f, 1.0f
     };
     glGenVertexArrays(1, &blurVAO);
-    glGenBuffers(1, &blurVBO);
+    glGenBuffers(1, &blurVBO);                              
     glBindVertexArray(blurVAO);
     glBindBuffer(GL_ARRAY_BUFFER, blurVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
@@ -529,7 +529,8 @@ void Game::Render() {
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
         helpMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight);
 
-        helpMenu->RenderImage("assets/textures/Manu/wasd.png", fbWidth / 2.0f, fbHeight / 2.0f - 100.0f, 400.0f, 250.0f, fbWidth, fbHeight);
+       // Eliminamos el "- 50.0f" para que use el centro geométrico exacto
+        helpMenu->RenderImage("assets/textures/Manu/wasd.png", fbWidth / 2.0f, fbHeight / 2.0f + 200.0f, 400.0f, 400.0f, fbWidth, fbHeight);
 
         glfwSwapBuffers(window);
         return;
