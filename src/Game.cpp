@@ -497,22 +497,10 @@ void Game::Render() {
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
 
-        glBindFramebuffer(GL_FRAMEBUFFER, menuFBO);
-        glViewport(0, 0, menuFBOWidth, menuFBOHeight);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        RenderGameScene();
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
+        // Limpiar el buffer de pantalla con color negro en lugar de renderizar el FBO
         glViewport(0, 0, fbWidth, fbHeight);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glDisable(GL_DEPTH_TEST);
-        glUseProgram(menuShaderProgram);
-        glUniform1i(glGetUniformLocation(menuShaderProgram, "screenTexture"), 0);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, menuFBOTexture);
-        glBindVertexArray(blurVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        glBindVertexArray(0);
 
         menu->Render(menuShaderProgram, VAO, fbWidth, fbHeight);
 
@@ -570,7 +558,7 @@ void Game::RenderGameScene() {
     int fbWidth, fbHeight;
     glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
     float aspect = (float)fbWidth / (float)fbHeight;
-    glm::mat4 projection = glm::perspective(glm::radians(60.0f), aspect, 0.1f, 200.0f);
+    glm::mat4 projection = glm::perspective(glm::radians(60.0f), aspect, 0.1f, 100.0f);
 
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
