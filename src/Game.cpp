@@ -529,12 +529,7 @@ void Game::Render() {
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
         helpMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight);
 
-        helpMenu->RenderText("HELP - CONTROLS", fbWidth / 2.0f, fbHeight / 2.0f - 200.0f, 1.2f, glm::vec3(1.0f, 1.0f, 0.0f), fbWidth, fbHeight);
-        helpMenu->RenderText("A / ← : Move left",     fbWidth / 2.0f, fbHeight / 2.0f - 100.0f, 0.7f, glm::vec3(1.0f, 1.0f, 1.0f), fbWidth, fbHeight);
-        helpMenu->RenderText("D / → : Move right",       fbWidth / 2.0f, fbHeight / 2.0f - 50.0f,  0.7f, glm::vec3(1.0f, 1.0f, 1.0f), fbWidth, fbHeight);
-        helpMenu->RenderText("W / SPACE : Jump",                 fbWidth / 2.0f, fbHeight / 2.0f,           0.7f, glm::vec3(1.0f, 1.0f, 1.0f), fbWidth, fbHeight);
-        helpMenu->RenderText("S : Fast fall",            fbWidth / 2.0f, fbHeight / 2.0f + 50.0f,  0.7f, glm::vec3(0.0f, 0.8f, 1.0f), fbWidth, fbHeight);
-        helpMenu->RenderText("ESC : Pause",                       fbWidth / 2.0f, fbHeight / 2.0f + 100.0f, 0.7f, glm::vec3(1.0f, 1.0f, 1.0f), fbWidth, fbHeight);
+        helpMenu->RenderImage("assets/textures/Manu/wasd.png", fbWidth / 2.0f, fbHeight / 2.0f - 100.0f, 400.0f, 250.0f, fbWidth, fbHeight);
 
         glfwSwapBuffers(window);
         return;

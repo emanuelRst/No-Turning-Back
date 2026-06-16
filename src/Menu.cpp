@@ -11,8 +11,7 @@
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "../vendor/stb/stb_truetype.h"
-// #define STB_IMAGE_IMPLEMENTATION  <-- Comentado para evitar conflictos con SOIL2
-#include <stb_image.h>
+#include <SOIL2/SOIL2.h>
 
 const char* textVertexShaderSource = R"(
 #version 330 core
@@ -34,6 +33,16 @@ uniform vec3 textColor;
 void main() {
     vec4 sampled = vec4(1.0, 1.0, 1.0, texture(text, TexCoords).r);
     FragColor = vec4(textColor, 1.0) * sampled;
+}
+)";
+
+const char* imageFragmentShaderSource = R"(
+#version 330 core
+in vec2 TexCoords;
+out vec4 FragColor;
+uniform sampler2D image;
+void main() {
+    FragColor = texture(image, TexCoords);
 }
 )";
 
@@ -135,21 +144,38 @@ void Menu::Init(const std::string& fontPath) {
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
     glBindVertexArray(0);
 
+    // Compile image shader
+    unsigned int vShaderImg = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vShaderImg, 1, &textVertexShaderSource, NULL);
+    glCompileShader(vShaderImg);
+    unsigned int fShaderImg = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fShaderImg, 1, &imageFragmentShaderSource, NULL);
+    glCompileShader(fShaderImg);
+    imageShaderProgram = glCreateProgram();
+    glAttachShader(imageShaderProgram, vShaderImg);
+    glAttachShader(imageShaderProgram, fShaderImg);
+    glLinkProgram(imageShaderProgram);
+
     // Load background texture
-    int texW, texH, nrChannels;
-    unsigned char* data = stbi_load("assets/textures/Manu/FondoMenu.jpg", &texW, &texH, &nrChannels, 0);
-    if (data) {
-        glGenTextures(1, &backgroundTexture);
-        glBindTexture(GL_TEXTURE_2D, backgroundTexture);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texW, texH, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        stbi_image_free(data);
-    } else {
-        std::cerr << "Failed to load background image" << std::endl;
+    backgroundTexture = SOIL_load_OGL_texture(
+        "assets/textures/Manu/FondoMenu.jpg",
+        SOIL_LOAD_AUTO,
+        SOIL_CREATE_NEW_ID,
+        SOIL_FLAG_MIPMAPS | SOIL_FLAG_TEXTURE_REPEATS
+    );
+    if (backgroundTexture == 0) {
+        std::cerr << "Failed to load background image: " << SOIL_last_result() << std::endl;
+    }
+
+    // Load wasd texture
+    wasdTexture = SOIL_load_OGL_texture(
+        "assets/textures/Manu/wasd.png",
+        SOIL_LOAD_AUTO,
+        SOIL_CREATE_NEW_ID,
+        SOIL_FLAG_MIPMAPS | SOIL_FLAG_TEXTURE_REPEATS
+    );
+    if (wasdTexture == 0) {
+        std::cerr << "Failed to load wasd image: " << SOIL_last_result() << std::endl;
     }
 
     // Prepare VAO/VBO
@@ -346,6 +372,46 @@ void Menu::RenderText(const std::string& text, float x, float y, float scale, gl
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
     
+    glDisable(GL_BLEND);
+}
+
+void Menu::RenderImage(const std::string& imagePath, float x, float y, float w, float h, int width, int height) {
+    // Para simplificar, asumimos que siempre es wasd.png dado el requerimiento.
+    unsigned int textureID = wasdTexture;
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
+    glUseProgram(imageShaderProgram);
+    glUniform1i(glGetUniformLocation(imageShaderProgram, "image"), 0);
+    
+    glm::mat4 projection = glm::ortho(0.0f, (float)width, (float)height, 0.0f);
+    glUniformMatrix4fv(glGetUniformLocation(imageShaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+    
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    glBindVertexArray(textVAO);
+
+    float xpos = x - w / 2.0f;
+    float ypos = y - h / 2.0f;
+    
+    float vertices[6][4] = {
+        { xpos,     ypos + h,   0.0, 1.0 },
+        { xpos,     ypos,       0.0, 0.0 },
+        { xpos + w, ypos,       1.0, 0.0 },
+
+        { xpos,     ypos + h,   0.0, 1.0 },
+        { xpos + w, ypos,       1.0, 0.0 },
+        { xpos + w, ypos + h,   1.0, 1.0 }
+    };
+    
+    glBindBuffer(GL_ARRAY_BUFFER, textVBO);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    
+    glBindVertexArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
     glDisable(GL_BLEND);
 }
 
