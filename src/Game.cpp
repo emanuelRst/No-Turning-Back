@@ -496,7 +496,7 @@ void Game::Update(float deltaTime) {
     levelGen.Update(deltaTime, currentSpeed, playerZ, gameTime);
     UpdateGround(deltaTime, currentSpeed);
 
-    std::vector<GameObject*> collisionObjects = levelGen.GetCollisionObjects();
+    const auto& collisionObjects = levelGen.GetCollisionObjects();
     player.Update(deltaTime, collisionObjects);
 }
 
@@ -577,6 +577,24 @@ void Game::Render() {
 void Game::RenderGameScene() {
     glUseProgram(shaderProgram);
 
+    struct UniformCache {
+        GLint view, projection, lightPos, viewPos, lightColor, isAnimated, objectColor, model, useTexture;
+    };
+    static UniformCache uc = {};
+    static unsigned int lastProgram = 0;
+    if (shaderProgram != lastProgram) {
+        lastProgram = shaderProgram;
+        uc.view = glGetUniformLocation(shaderProgram, "view");
+        uc.projection = glGetUniformLocation(shaderProgram, "projection");
+        uc.lightPos = glGetUniformLocation(shaderProgram, "lightPos");
+        uc.viewPos = glGetUniformLocation(shaderProgram, "viewPos");
+        uc.lightColor = glGetUniformLocation(shaderProgram, "lightColor");
+        uc.isAnimated = glGetUniformLocation(shaderProgram, "isAnimated");
+        uc.objectColor = glGetUniformLocation(shaderProgram, "objectColor");
+        uc.model = glGetUniformLocation(shaderProgram, "model");
+        uc.useTexture = glGetUniformLocation(shaderProgram, "useTexture");
+    }
+
     glm::vec3 pos = player.GetPosition();
     glm::vec3 playerSize = player.GetCollisionSize();
 
@@ -589,17 +607,17 @@ void Game::RenderGameScene() {
     float aspect = (float)fbWidth / (float)fbHeight;
     glm::mat4 projection = glm::perspective(glm::radians(60.0f), aspect, 0.1f, 100.0f);
 
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+    glUniformMatrix4fv(uc.view, 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(uc.projection, 1, GL_FALSE, glm::value_ptr(projection));
 
-    glUniform3f(glGetUniformLocation(shaderProgram, "lightPos"), 5.0f, 10.0f, 5.0f);
-    glUniform3f(glGetUniformLocation(shaderProgram, "viewPos"), cameraPos.x, cameraPos.y, cameraPos.z);
-    glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"), 1.0f, 1.0f, 1.0f);
+    glUniform3f(uc.lightPos, 5.0f, 10.0f, 5.0f);
+    glUniform3f(uc.viewPos, cameraPos.x, cameraPos.y, cameraPos.z);
+    glUniform3f(uc.lightColor, 1.0f, 1.0f, 1.0f);
 
     constexpr float kCubeScaleFactor = 5.0f;
 
     if (playerModel) {
-        glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 1);
+        glUniform1i(uc.isAnimated, 1);
         const ModelAABB& meshAABB = playerModel->GetMeshAABB();
         const float scale = player.GetVisualScale();
         const float translateY = pos.y - meshAABB.min.y * scale;
@@ -608,9 +626,9 @@ void Game::RenderGameScene() {
         visualModel = glm::rotate(visualModel, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         visualModel = glm::scale(visualModel, glm::vec3(scale));
         if (player.IsWeakened()) {
-            glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 0.6f, 0.2f);
+            glUniform3f(uc.objectColor, 1.0f, 0.6f, 0.2f);
         } else {
-            glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 1.0f, 1.0f);
+            glUniform3f(uc.objectColor, 1.0f, 1.0f, 1.0f);
         }
         std::string animName = "Run";
         bool loop = true;
@@ -646,63 +664,63 @@ void Game::RenderGameScene() {
         
         playerModel->Draw(shaderProgram, visualModel, animTime, animName, loop);
     } else {
-        glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 0);
+        glUniform1i(uc.isAnimated, 0);
         glm::mat4 playerCube = glm::translate(glm::mat4(1.0f),
                                               glm::vec3(pos.x, pos.y + playerSize.y * 0.5f, pos.z));
         playerCube = glm::scale(playerCube, playerSize * kCubeScaleFactor);
         if (player.IsWeakened()) {
-            glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 0.6f, 0.2f);
+            glUniform3f(uc.objectColor, 1.0f, 0.6f, 0.2f);
         } else {
-            glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 1.0f, 1.0f);
+            glUniform3f(uc.objectColor, 1.0f, 1.0f, 1.0f);
         }
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(playerCube));
-        glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
+        glUniformMatrix4fv(uc.model, 1, GL_FALSE, glm::value_ptr(playerCube));
+        glUniform1i(uc.useTexture, 0);
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }
 
     // Dibujar Trenes
-    glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 0);
-    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.85f, 0.2f, 0.12f);
-    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
+    glUniform1i(uc.isAnimated, 0);
+    glUniform3f(uc.objectColor, 0.85f, 0.2f, 0.12f);
+    glUniform1i(uc.useTexture, 0);
     glBindVertexArray(VAO);
     for (const Train& train : levelGen.GetTrains()) {
         const glm::vec3 tp = train.GetPosition();
         const glm::vec3 ts = train.GetHitboxSize();
         glm::mat4 trainModel = glm::translate(glm::mat4(1.0f), tp);
         trainModel = glm::scale(trainModel, ts * kCubeScaleFactor);
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(trainModel));
+        glUniformMatrix4fv(uc.model, 1, GL_FALSE, glm::value_ptr(trainModel));
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }
 
     // Dibujar Obstaculos Overhead
-    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.2f, 0.8f, 0.2f);
-    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
+    glUniform3f(uc.objectColor, 0.2f, 0.8f, 0.2f);
+    glUniform1i(uc.useTexture, 0);
     for (const auto& obs : levelGen.GetOverheads()) {
         const glm::vec3 op = obs.GetPosition();
         const glm::vec3 os = obs.GetHitboxSize();
         glm::mat4 obsModel = glm::translate(glm::mat4(1.0f), op);
         obsModel = glm::scale(obsModel, os * kCubeScaleFactor);
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(obsModel));
+        glUniformMatrix4fv(uc.model, 1, GL_FALSE, glm::value_ptr(obsModel));
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }
 
         // Dibujar Rampas (Color brillante para identificar)
-        glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
-        glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 1.0f, 0.0f); // Neon Yellow
+        glUniform1i(uc.useTexture, 0);
+        glUniform3f(uc.objectColor, 1.0f, 1.0f, 0.0f); // Neon Yellow
         for (const auto& ramp : levelGen.GetRamps()) {
             const glm::vec3 rp = ramp.GetPosition();
             const glm::vec3 rs = ramp.GetHitboxSize();
             
             glm::mat4 rampModel = glm::translate(glm::mat4(1.0f), rp);
             rampModel = glm::scale(rampModel, rs * kCubeScaleFactor);
-            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(rampModel));
+            glUniformMatrix4fv(uc.model, 1, GL_FALSE, glm::value_ptr(rampModel));
             glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
         }
 
 
-    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.5f, 0.5f, 0.5f);
-    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
+    glUniform3f(uc.objectColor, 0.5f, 0.5f, 0.5f);
+    glUniform1i(uc.useTexture, 0);
     glBindVertexArray(groundVAO);
     float scrollZ = groundScroll - (int)(groundScroll / kGroundSegmentLength) * kGroundSegmentLength;
     for (const auto& segment : groundSegments) {
@@ -711,7 +729,7 @@ void Game::RenderGameScene() {
         glm::mat4 segModel = glm::translate(glm::mat4(1.0f),
                                             glm::vec3(sp.x, sp.y - ss.y * 0.5f, sp.z + scrollZ));
         segModel = glm::scale(segModel, ss * kCubeScaleFactor);
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(segModel));
+        glUniformMatrix4fv(uc.model, 1, GL_FALSE, glm::value_ptr(segModel));
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }
 }

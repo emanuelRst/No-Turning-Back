@@ -20,7 +20,7 @@ public:
     const std::vector<ObstacleOverhead>& GetOverheads() const { return overheads; }
     const std::vector<RampTrain>& GetRamps() const { return ramps; }
 
-    std::vector<GameObject*> GetCollisionObjects();
+    const std::vector<GameObject*>& GetCollisionObjects() { return collisionCache; }
 
 private:
     std::vector<Train> trains;
@@ -32,9 +32,12 @@ private:
 
     std::mt19937 rng;
 
+    std::vector<GameObject*> collisionCache;
+
     void SpawnPattern(float playerZ, float gameTime);
     void Cleanup(float playerZ);
     int PickLane();
+    void RebuildCollisionCache();
 
     static constexpr float kSpawnDistance = 80.0f;
     static constexpr float kMinSpacing = 25.0f;

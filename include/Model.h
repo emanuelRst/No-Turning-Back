@@ -73,6 +73,12 @@ private:
     std::vector<glm::mat4> m_BoneMatrices;
     std::map<std::string, unsigned int> animationMapping;
 
+    // Uniform location cache (evita glGetUniformLocation por cuadro)
+    unsigned int lastShaderProgram = 0;
+    GLint cachedModelLoc = -1;
+    GLint cachedUseTextureLoc = -1;
+    GLint cachedBoneLocs[100];
+
     void LoadModel(const std::string& path);
     void processNode(aiNode *node, const aiScene *scene);
     // Calcula el AABB aplicando recursivamente las transformaciones de los nodos.

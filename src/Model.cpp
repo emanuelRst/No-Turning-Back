@@ -45,6 +45,16 @@ float Model::GetAnimationDurationInSeconds(const std::string& animName) const {
 }
 
 void Model::Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float animationTime, const std::string& animName, bool loop) {
+    if (shaderProgram != lastShaderProgram) {
+        lastShaderProgram = shaderProgram;
+        cachedModelLoc = glGetUniformLocation(shaderProgram, "model");
+        cachedUseTextureLoc = glGetUniformLocation(shaderProgram, "useTexture");
+        for (int i = 0; i < 100; i++) {
+            cachedBoneLocs[i] = glGetUniformLocation(shaderProgram,
+                ("boneMatrices[" + std::to_string(i) + "]").c_str());
+        }
+    }
+
     int animIndex = -1;
     if (!animName.empty()) {
         auto it = animationMapping.find(animName);
@@ -62,15 +72,17 @@ void Model::Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float
         m_BoneMatrices.resize(boneCount);
         ReadNodeHierarchy(AnimationTime, scene->mRootNode, glm::mat4(1.0f), animIndex);
         for (unsigned int i = 0; i < m_BoneMatrices.size(); i++) {
-             glUniformMatrix4fv(glGetUniformLocation(shaderProgram, ("boneMatrices[" + std::to_string(i) + "]").c_str()), 1, GL_FALSE, glm::value_ptr(m_BoneMatrices[i]));
+             glUniformMatrix4fv(cachedBoneLocs[i], 1, GL_FALSE, glm::value_ptr(m_BoneMatrices[i]));
         }
     } else {
         glm::mat4 identity(1.0f);
-        for(int i = 0; i < 100; i++)
-             glUniformMatrix4fv(glGetUniformLocation(shaderProgram, ("boneMatrices[" + std::to_string(i) + "]").c_str()), 1, GL_FALSE, glm::value_ptr(identity));
+        for (int i = 0; i < 100; i++) {
+            if (cachedBoneLocs[i] == -1) break;
+            glUniformMatrix4fv(cachedBoneLocs[i], 1, GL_FALSE, glm::value_ptr(identity));
+        }
     }
 
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(modelMatrix));
+    glUniformMatrix4fv(cachedModelLoc, 1, GL_FALSE, glm::value_ptr(modelMatrix));
     
     bool hasTextures = false;
     for (const auto& mesh : meshes) {
@@ -79,7 +91,7 @@ void Model::Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float
             break;
         }
     }
-    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), hasTextures ? 1 : 0);
+    glUniform1i(cachedUseTextureLoc, hasTextures ? 1 : 0);
 
     for (auto& mesh : meshes) {
         unsigned int diffuseNr = 1;
@@ -89,7 +101,8 @@ void Model::Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float
             std::string name = mesh.textures[i].type;
             if (name == "texture_diffuse") number = std::to_string(diffuseNr++);
             
-            glUniform1i(glGetUniformLocation(shaderProgram, (name + number).c_str()), i);
+            GLint loc = glGetUniformLocation(shaderProgram, (name + number).c_str());
+            glUniform1i(loc, i);
             glBindTexture(GL_TEXTURE_2D, mesh.textures[i].id);
         }
 

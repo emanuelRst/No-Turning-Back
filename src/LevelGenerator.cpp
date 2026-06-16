@@ -25,6 +25,8 @@ void LevelGenerator::Reset(float playerZ) {
     for (int i = 0; i < 4; ++i) {
         SpawnPattern(playerZ, 0.0f);
     }
+
+    RebuildCollisionCache();
 }
 
 void LevelGenerator::Update(float deltaTime, float currentSpeed, float playerZ, float gameTime) {
@@ -60,6 +62,9 @@ void LevelGenerator::Update(float deltaTime, float currentSpeed, float playerZ, 
 
     // Cleanup obstacles that passed behind the player
     Cleanup(playerZ);
+
+    // Actualizar cache de colisiones
+    RebuildCollisionCache();
 }
 
 void LevelGenerator::SpawnPattern(float playerZ, float gameTime) {
@@ -138,17 +143,16 @@ void LevelGenerator::Cleanup(float playerZ) {
     ramps.erase(std::remove_if(ramps.begin(), ramps.end(), rampPast), ramps.end());
 }
 
-std::vector<GameObject*> LevelGenerator::GetCollisionObjects() {
-    std::vector<GameObject*> objects;
-    objects.reserve(trains.size() + overheads.size() + ramps.size());
+void LevelGenerator::RebuildCollisionCache() {
+    collisionCache.clear();
+    collisionCache.reserve(trains.size() + overheads.size() + ramps.size());
     for (Train& train : trains) {
-        objects.push_back(&train);
+        collisionCache.push_back(&train);
     }
     for (ObstacleOverhead& obs : overheads) {
-        objects.push_back(&obs);
+        collisionCache.push_back(&obs);
     }
     for (RampTrain& ramp : ramps) {
-        objects.push_back(&ramp);
+        collisionCache.push_back(&ramp);
     }
-    return objects;
 }

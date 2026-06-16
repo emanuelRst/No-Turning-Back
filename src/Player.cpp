@@ -150,7 +150,8 @@ void Player::UpdatePhysics(float deltaTime, const std::vector<GameObject*>& coll
         }
 
         // Verificar si es una rampa
-        if (auto ramp = dynamic_cast<const RampTrain*>(blocker)) {
+        if (blocker->IsRamp()) {
+            auto ramp = static_cast<const RampTrain*>(blocker);
             // Ajustar posición Y basada en la rampa
             float newY = ramp->GetHeightAt(position.z);
             // Solo ajustar si la rampa es mas alta que la posicion actual
