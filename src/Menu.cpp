@@ -1,3 +1,4 @@
+#include <sstream>
 #include "Menu.h"
 #include <glad/glad.h>
 #include <iostream>
@@ -10,6 +11,7 @@
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "../vendor/stb/stb_truetype.h"
+#include <SOIL2/SOIL2.h>
 
 const char* textVertexShaderSource = R"(
 #version 330 core
@@ -34,13 +36,35 @@ void main() {
 }
 )";
 
+const char* imageFragmentShaderSource = R"(
+#version 330 core
+in vec2 TexCoords;
+out vec4 FragColor;
+uniform sampler2D image;
+void main() {
+    FragColor = texture(image, TexCoords);
+}
+)";
+
+// Helper to load shader file
+std::string ReadShaderFile(const std::string& path) {
+    std::ifstream file(path);
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    return buffer.str();
+}
+
 Menu::Menu() {}
 
 Menu::~Menu() {
     glDeleteVertexArrays(1, &textVAO);
     glDeleteBuffers(1, &textVBO);
+    glDeleteVertexArrays(1, &backgroundVAO);
+    glDeleteBuffers(1, &backgroundVBO);
     glDeleteProgram(textShaderProgram);
+    glDeleteProgram(backgroundShaderProgram);
     glDeleteTextures(1, &atlasTexture);
+    glDeleteTextures(1, &backgroundTexture);
 }
 
 float Menu::GetTextWidth(const std::string& text, float scale) {
@@ -80,6 +104,79 @@ void Menu::Init(const std::string& fontPath) {
     glAttachShader(textShaderProgram, vShader);
     glAttachShader(textShaderProgram, fShader);
     glLinkProgram(textShaderProgram);
+
+    // Load and compile background shader
+    std::string vSource = ReadShaderFile("assets/shaders/background.vert");
+    std::string fSource = ReadShaderFile("assets/shaders/background.frag");
+    const char* vSourceC = vSource.c_str();
+    const char* fSourceC = fSource.c_str();
+
+    unsigned int vShaderBg = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vShaderBg, 1, &vSourceC, NULL);
+    glCompileShader(vShaderBg);
+    unsigned int fShaderBg = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fShaderBg, 1, &fSourceC, NULL);
+    glCompileShader(fShaderBg);
+    backgroundShaderProgram = glCreateProgram();
+    glAttachShader(backgroundShaderProgram, vShaderBg);
+    glAttachShader(backgroundShaderProgram, fShaderBg);
+    glLinkProgram(backgroundShaderProgram);
+
+    // Setup background VAO/VBO
+    float quadVertices[] = {
+        // positions        // texCoords
+        -1.0f,  1.0f,       0.0f, 1.0f,
+        -1.0f, -1.0f,       0.0f, 0.0f,
+         1.0f, -1.0f,       1.0f, 0.0f,
+
+        -1.0f,  1.0f,       0.0f, 1.0f,
+         1.0f, -1.0f,       1.0f, 0.0f,
+         1.0f,  1.0f,       1.0f, 1.0f
+    };
+    glGenVertexArrays(1, &backgroundVAO);
+    glGenBuffers(1, &backgroundVBO);
+    glBindVertexArray(backgroundVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, backgroundVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glBindVertexArray(0);
+
+    // Compile image shader
+    unsigned int vShaderImg = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vShaderImg, 1, &textVertexShaderSource, NULL);
+    glCompileShader(vShaderImg);
+    unsigned int fShaderImg = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fShaderImg, 1, &imageFragmentShaderSource, NULL);
+    glCompileShader(fShaderImg);
+    imageShaderProgram = glCreateProgram();
+    glAttachShader(imageShaderProgram, vShaderImg);
+    glAttachShader(imageShaderProgram, fShaderImg);
+    glLinkProgram(imageShaderProgram);
+
+    // Load background texture
+    backgroundTexture = SOIL_load_OGL_texture(
+        "assets/textures/Manu/FondoMenu.jpg",
+        SOIL_LOAD_AUTO,
+        SOIL_CREATE_NEW_ID,
+        SOIL_FLAG_MIPMAPS | SOIL_FLAG_TEXTURE_REPEATS
+    );
+    if (backgroundTexture == 0) {
+        std::cerr << "Failed to load background image: " << SOIL_last_result() << std::endl;
+    }
+
+    // Load wasd texture
+    wasdTexture = SOIL_load_OGL_texture(
+        "assets/textures/Manu/wasd.png",
+        SOIL_LOAD_AUTO,
+        SOIL_CREATE_NEW_ID,
+        SOIL_FLAG_MIPMAPS | SOIL_FLAG_TEXTURE_REPEATS
+    );
+    if (wasdTexture == 0) {
+        std::cerr << "Failed to load wasd image: " << SOIL_last_result() << std::endl;
+    }
 
     // Prepare VAO/VBO
     glGenVertexArrays(1, &textVAO);
@@ -197,9 +294,18 @@ void Menu::HandleKeyEvent(int key) {
 void Menu::Render(unsigned int shaderProgram, unsigned int quadVAO, int width, int height) {
     glDisable(GL_DEPTH_TEST);
     
+    // Draw background
+    glUseProgram(backgroundShaderProgram);
+    glUniform1i(glGetUniformLocation(backgroundShaderProgram, "image"), 0);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, backgroundTexture);
+    glBindVertexArray(backgroundVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+
     // Dibujar texto directamente
     for (const auto& button : buttons) {
-        glm::vec3 color = button.isHovered ? glm::vec3(0.0f, 0.5f, 0.8f) : glm::vec3(1.0f, 1.0f, 1.0f);
+        glm::vec3 color = button.isHovered ? glm::vec3(1.0f, 0.0f, 0.0f) : glm::vec3(1.0f, 1.0f, 1.0f);
         // Usar la escala suavizada
         float scale = button.currentScale;
         // Usar button.x y button.y como centro
@@ -266,6 +372,46 @@ void Menu::RenderText(const std::string& text, float x, float y, float scale, gl
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
     
+    glDisable(GL_BLEND);
+}
+
+void Menu::RenderImage(const std::string& imagePath, float x, float y, float w, float h, int width, int height) {
+    // Para simplificar, asumimos que siempre es wasd.png dado el requerimiento.
+    unsigned int textureID = wasdTexture;
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
+    glUseProgram(imageShaderProgram);
+    glUniform1i(glGetUniformLocation(imageShaderProgram, "image"), 0);
+    
+    glm::mat4 projection = glm::ortho(0.0f, (float)width, (float)height, 0.0f);
+    glUniformMatrix4fv(glGetUniformLocation(imageShaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+    
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    glBindVertexArray(textVAO);
+
+    float xpos = x - w / 2.0f;
+    float ypos = y - h / 2.0f;
+    
+    float vertices[6][4] = {
+        { xpos,     ypos + h,   0.0, 1.0 },
+        { xpos,     ypos,       0.0, 0.0 },
+        { xpos + w, ypos,       1.0, 0.0 },
+
+        { xpos,     ypos + h,   0.0, 1.0 },
+        { xpos + w, ypos,       1.0, 0.0 },
+        { xpos + w, ypos + h,   1.0, 1.0 }
+    };
+    
+    glBindBuffer(GL_ARRAY_BUFFER, textVBO);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    
+    glBindVertexArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
     glDisable(GL_BLEND);
 }
 

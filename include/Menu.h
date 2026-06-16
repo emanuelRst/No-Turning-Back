@@ -37,6 +37,7 @@ public:
     void Update(float deltaTime, int width, int height);
     void Render(unsigned int shaderProgram, unsigned int quadVAO, int width, int height);
     void RenderText(const std::string& text, float x, float y, float scale, glm::vec3 color, int width, int height);
+    void RenderImage(const std::string& imagePath, float x, float y, float w, float h, int width, int height);
     bool HandleClick(double mouseX, double mouseY);
     void HandleKeyEvent(int key); // Nueva función
     void AddButton(const std::string& text, float x, float y, float w, float h, std::function<void()> onClick, const std::string& audioPath = "");
@@ -58,6 +59,11 @@ private:
     unsigned int textVAO, textVBO;
     unsigned int textShaderProgram;
     unsigned int atlasTexture;
+    unsigned int backgroundTexture;
+    unsigned int wasdTexture;
+    unsigned int backgroundShaderProgram;
+    unsigned int imageShaderProgram;
+    unsigned int backgroundVAO, backgroundVBO;
 };
 
 #endif

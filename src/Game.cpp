@@ -39,8 +39,12 @@ Game::Game(int w, int h)
 
     float buttonWidth = 250.0f;
     
-    // Configurar botones del menú (Tamaño 600x150)
-    menu->AddButton("Start Game", 660 + buttonWidth, 200, 600, 150, [this](){ 
+    int targetButtonWidth = 400;
+    int targetButtonHeight = 20;
+    int fixedX = 953;
+
+    // Botón 1: Start Game (Y: 620)
+    menu->AddButton("Start Game", fixedX, 625, targetButtonWidth, targetButtonHeight, [this](){ 
         this->ResetRun();
         this->currentState = GameState::PLAYING;
         this->gameStartTimer = 4.0f;
@@ -48,15 +52,27 @@ Game::Game(int w, int h)
         this->lastAnimState = Player::AnimState::Dance;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     }, "assets/audio/Menu/MenuEfecto.wav");
-    menu->AddButton("Change Characters", 680 + buttonWidth, 370, 600, 150, [](){ std::cout << "Characters\n"; }, "assets/audio/Menu/MenuEfecto.wav");
-    menu->AddButton("Help", 660 + buttonWidth, 540, 600, 150, [this](){
+
+    // Botón 2: Change Characters (Y: 675)
+    menu->AddButton("Change Characters", fixedX, 690, targetButtonWidth, targetButtonHeight, [](){ 
+        std::cout << "Characters\n"; 
+    }, "assets/audio/Menu/MenuEfecto.wav");
+
+    // Botón 3: Help (Y: 730)
+    menu->AddButton("Help", fixedX, 775, targetButtonWidth, targetButtonHeight, [this](){
         this->currentState = GameState::HELP;
     }, "assets/audio/Menu/MenuEfecto.wav");
-    menu->AddButton("Credits", 660 + buttonWidth, 710, 600, 150, [](){ std::cout << "Credits\n"; }, "assets/audio/Menu/MenuEfecto.wav");
-    menu->AddButton("Exit", 660 + buttonWidth, 880, 600, 150, [this](){
+
+    // Botón 4: Credits (Y: 785)
+    menu->AddButton("Credits", fixedX, 840, targetButtonWidth, targetButtonHeight, [](){ 
+        std::cout << "Credits\n"; 
+    }, "assets/audio/Menu/MenuEfecto.wav");
+
+    // Botón 5: Exit (Y: 840)
+    menu->AddButton("Exit", fixedX, 900, targetButtonWidth, targetButtonHeight, [this](){
         glfwSetWindowShouldClose(this->window, true);
     }, "assets/audio/Menu/MenuEfecto.wav");
-    
+
     // Configurar botones de Game Over (uno al lado del otro, más abajo)
     float gameOverY = 700.0f;
     float btnGap = 400.0f;
@@ -531,12 +547,7 @@ void Game::Render() {
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
         helpMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight);
 
-        helpMenu->RenderText("HELP - CONTROLS", fbWidth / 2.0f, fbHeight / 2.0f - 200.0f, 1.2f, glm::vec3(1.0f, 1.0f, 0.0f), fbWidth, fbHeight);
-        helpMenu->RenderText("A / ← : Move left",     fbWidth / 2.0f, fbHeight / 2.0f - 100.0f, 0.7f, glm::vec3(1.0f, 1.0f, 1.0f), fbWidth, fbHeight);
-        helpMenu->RenderText("D / → : Move right",       fbWidth / 2.0f, fbHeight / 2.0f - 50.0f,  0.7f, glm::vec3(1.0f, 1.0f, 1.0f), fbWidth, fbHeight);
-        helpMenu->RenderText("W / SPACE : Jump",                 fbWidth / 2.0f, fbHeight / 2.0f,           0.7f, glm::vec3(1.0f, 1.0f, 1.0f), fbWidth, fbHeight);
-        helpMenu->RenderText("S : Fast fall",            fbWidth / 2.0f, fbHeight / 2.0f + 50.0f,  0.7f, glm::vec3(0.0f, 0.8f, 1.0f), fbWidth, fbHeight);
-        helpMenu->RenderText("ESC : Pause",                       fbWidth / 2.0f, fbHeight / 2.0f + 100.0f, 0.7f, glm::vec3(1.0f, 1.0f, 1.0f), fbWidth, fbHeight);
+        helpMenu->RenderImage("assets/textures/Manu/wasd.png", fbWidth / 2.0f, fbHeight / 2.0f - 100.0f, 400.0f, 250.0f, fbWidth, fbHeight);
 
         glfwSwapBuffers(window);
         return;
