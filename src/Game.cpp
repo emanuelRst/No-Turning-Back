@@ -583,15 +583,24 @@ void Game::RenderGameScene() {
         } else {
             glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 1.0f, 1.0f);
         }
-        unsigned int animIndex = 4;
-        switch (player.GetAnimState()) {
-            case Player::AnimState::Jump: animIndex = 3; break;
-            case Player::AnimState::Fall: animIndex = 1; break;
-            case Player::AnimState::Hit:  animIndex = 2; break;
-            case Player::AnimState::Die:  animIndex = 0; break;
-            default:                      animIndex = 4; break;
+        std::string animName = "Run";
+        bool loop = true;
+        Player::AnimState animState = player.GetAnimState();
+
+        switch (animState) {
+            case Player::AnimState::Jump: animName = "Fall"; break; // Fall como fallback para Jump
+            case Player::AnimState::Fall: animName = "Fall"; break;
+            case Player::AnimState::Hit:  animName = "HitOnSide"; loop = false; break;
+            case Player::AnimState::Die:  animName = "Die"; break;
+            default:                      animName = "Run"; break;
         }
-        playerModel->Draw(shaderProgram, visualModel, (float)glfwGetTime(), animIndex);
+
+        float animTime = (float)glfwGetTime();
+        if (animState == Player::AnimState::Hit) {
+            animTime = 5.0f - player.GetWeakenedTimer();
+        }
+        
+        playerModel->Draw(shaderProgram, visualModel, animTime, animName, loop);
     } else {
         glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 0);
         glm::mat4 playerCube = glm::translate(glm::mat4(1.0f),
@@ -634,17 +643,19 @@ void Game::RenderGameScene() {
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }
 
-    // Dibujar Rampas
-    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.2f, 0.2f, 0.8f);
-    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
-    for (const auto& ramp : levelGen.GetRamps()) {
-        const glm::vec3 rp = ramp.GetPosition();
-        const glm::vec3 rs = ramp.GetHitboxSize();
-        glm::mat4 rampModel = glm::translate(glm::mat4(1.0f), rp);
-        rampModel = glm::scale(rampModel, rs * kCubeScaleFactor);
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(rampModel));
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-    }
+        // Dibujar Rampas (Color brillante para identificar)
+        glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
+        glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 1.0f, 0.0f); // Neon Yellow
+        for (const auto& ramp : levelGen.GetRamps()) {
+            const glm::vec3 rp = ramp.GetPosition();
+            const glm::vec3 rs = ramp.GetHitboxSize();
+            
+            glm::mat4 rampModel = glm::translate(glm::mat4(1.0f), rp);
+            rampModel = glm::scale(rampModel, rs * kCubeScaleFactor);
+            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(rampModel));
+            glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+        }
+
 
     glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.5f, 0.5f, 0.5f);
     glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);

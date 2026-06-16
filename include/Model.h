@@ -44,7 +44,9 @@ public:
     Model(const std::string& path);
     ~Model();
 
-    void Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float animationTime, unsigned int animIndex = 0);
+    float GetAnimationDurationInSeconds(const std::string& animName) const;
+    void Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float animationTime, const std::string& animName = "", bool loop = true);
+    int GetAnimationIndex(const std::string& name) const;
 
     // AABB en espacio del asset (con transforms de nodos). Sirve para escenas estáticas.
     ModelAABB GetAABB() const { return modelAABB; }
@@ -69,6 +71,7 @@ private:
     Assimp::Importer importer;
     const aiScene* scene;
     std::vector<glm::mat4> m_BoneMatrices;
+    std::map<std::string, unsigned int> animationMapping;
 
     void LoadModel(const std::string& path);
     void processNode(aiNode *node, const aiScene *scene);

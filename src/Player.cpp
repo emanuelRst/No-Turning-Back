@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <limits>
 #include <vector>
+#include <iostream>
 
 namespace {
 constexpr float kLaneWidth = 3.0f;
@@ -151,15 +152,26 @@ void Player::UpdatePhysics(float deltaTime, const std::vector<GameObject*>& coll
             return;
         }
 
-        if (isWeakened) {
-            // Segundo golpe mientras debilitado: muerte
+        // Determinar dirección del choque
+        // Nueva lógica: si estamos en el mismo carril (X similar), es frontal.
+        float distanceX = std::abs(position.x - blocker->GetPosition().x);
+        bool isFrontal = distanceX < 1.0f; // Umbral basado en el ancho del carril
+
+        if (isFrontal) {
+            hasCrashed = true;
+            velocity = glm::vec3(0.0f);
+            isJumping = false;
+            isGrounded = true;
+            isOnObject = false;
+        } else if (isWeakened) {
+            // Segundo golpe lateral mientras debilitado: muerte
             hasCrashed = true;
             velocity = glm::vec3(0.0f);
             isJumping = false;
             isGrounded = true;
             isOnObject = false;
         } else {
-            // Primer golpe: entra en estado debilitado y vuelve al carril anterior
+            // Primer golpe lateral: entra en estado debilitado y vuelve al carril anterior
             currentLane = previousLane;
             targetX = LaneX(currentLane);
             isWeakened = true;
@@ -228,7 +240,16 @@ const GameObject* Player::FindBlockingObject(const std::vector<GameObject*>& col
 
 Player::AnimState Player::GetAnimState() const {
     if (hasCrashed) return AnimState::Die;
-    if (isWeakened) return AnimState::Hit;
+    
+    // Si esta debilitado, solo mostrar hit si la animacion no ha terminado
+    if (isWeakened) {
+        float timeSinceHit = 5.0f - weakenedTimer;
+        float hitDuration = 0.5f; // Ajustar o consultar duración del modelo si es posible
+        if (timeSinceHit < hitDuration) {
+            return AnimState::Hit;
+        }
+    }
+    
     if (!isGrounded) {
         return (velocity.y > 0.0f) ? AnimState::Jump : AnimState::Fall;
     }

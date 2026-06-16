@@ -33,12 +33,31 @@ Model::~Model() {
     }
 }
 
-void Model::Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float animationTime, unsigned int animIndex) {
-    if (scene && scene->HasAnimations() && animIndex < scene->mNumAnimations) {
+float Model::GetAnimationDurationInSeconds(const std::string& animName) const {
+    auto it = animationMapping.find(animName);
+    if (it != animationMapping.end() && scene && scene->HasAnimations()) {
+        unsigned int animIndex = it->second;
+        const aiAnimation* anim = scene->mAnimations[animIndex];
+        float TicksPerSecond = (float)(anim->mTicksPerSecond != 0 ? anim->mTicksPerSecond : 25.0f);
+        return (float)anim->mDuration / TicksPerSecond;
+    }
+    return 0.0f;
+}
+
+void Model::Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float animationTime, const std::string& animName, bool loop) {
+    int animIndex = -1;
+    if (!animName.empty()) {
+        auto it = animationMapping.find(animName);
+        if (it != animationMapping.end()) {
+            animIndex = (int)it->second;
+        }
+    }
+
+    if (animIndex != -1 && scene && scene->HasAnimations() && animIndex < (int)scene->mNumAnimations) {
         const aiAnimation* anim = scene->mAnimations[animIndex];
         float TicksPerSecond = (float)(anim->mTicksPerSecond != 0 ? anim->mTicksPerSecond : 25.0f);
         float TimeInTicks = animationTime * TicksPerSecond;
-        float AnimationTime = fmod(TimeInTicks, (float)anim->mDuration);
+        float AnimationTime = loop ? fmod(TimeInTicks, (float)anim->mDuration) : std::min(TimeInTicks, (float)anim->mDuration);
 
         m_BoneMatrices.resize(boneCount);
         ReadNodeHierarchy(AnimationTime, scene->mRootNode, glm::mat4(1.0f), animIndex);
@@ -85,6 +104,14 @@ void Model::Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float
     glDisableVertexAttribArray(4);
 }
 
+int Model::GetAnimationIndex(const std::string& name) const {
+    auto it = animationMapping.find(name);
+    if (it != animationMapping.end()) {
+        return (int)it->second;
+    }
+    return -1;
+}
+
 void Model::LoadModel(const std::string& path) {
     scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenNormals);
 
@@ -103,6 +130,12 @@ void Model::LoadModel(const std::string& path) {
 
     // AABB real: recorrer la jerarquía aplicando mTransformation de cada nodo.
     ComputeAABB(scene->mRootNode, glm::mat4(1.0f));
+
+    // Mapear animaciones por nombre
+    for (unsigned int i = 0; i < scene->mNumAnimations; ++i) {
+        std::string name = scene->mAnimations[i]->mName.C_Str();
+        animationMapping[name] = i;
+    }
 
     // Si la carga no produjo vértices (escena vacía), dejar un AABB unitario
     // para que la hitbox resultante no sea degenerada.
