@@ -58,6 +58,9 @@ private:
     unsigned int textVAO, textVBO;
     unsigned int textShaderProgram;
     unsigned int atlasTexture;
+    unsigned int backgroundTexture;
+    unsigned int backgroundShaderProgram;
+    unsigned int backgroundVAO, backgroundVBO;
 };
 
 #endif

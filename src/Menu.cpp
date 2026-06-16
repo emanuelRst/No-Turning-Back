@@ -1,3 +1,4 @@
+#include <sstream>
 #include "Menu.h"
 #include <glad/glad.h>
 #include <iostream>
@@ -10,6 +11,8 @@
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "../vendor/stb/stb_truetype.h"
+// #define STB_IMAGE_IMPLEMENTATION  <-- Comentado para evitar conflictos con SOIL2
+#include <stb_image.h>
 
 const char* textVertexShaderSource = R"(
 #version 330 core
@@ -34,13 +37,25 @@ void main() {
 }
 )";
 
+// Helper to load shader file
+std::string ReadShaderFile(const std::string& path) {
+    std::ifstream file(path);
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    return buffer.str();
+}
+
 Menu::Menu() {}
 
 Menu::~Menu() {
     glDeleteVertexArrays(1, &textVAO);
     glDeleteBuffers(1, &textVBO);
+    glDeleteVertexArrays(1, &backgroundVAO);
+    glDeleteBuffers(1, &backgroundVBO);
     glDeleteProgram(textShaderProgram);
+    glDeleteProgram(backgroundShaderProgram);
     glDeleteTextures(1, &atlasTexture);
+    glDeleteTextures(1, &backgroundTexture);
 }
 
 float Menu::GetTextWidth(const std::string& text, float scale) {
@@ -80,6 +95,62 @@ void Menu::Init(const std::string& fontPath) {
     glAttachShader(textShaderProgram, vShader);
     glAttachShader(textShaderProgram, fShader);
     glLinkProgram(textShaderProgram);
+
+    // Load and compile background shader
+    std::string vSource = ReadShaderFile("assets/shaders/background.vert");
+    std::string fSource = ReadShaderFile("assets/shaders/background.frag");
+    const char* vSourceC = vSource.c_str();
+    const char* fSourceC = fSource.c_str();
+
+    unsigned int vShaderBg = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vShaderBg, 1, &vSourceC, NULL);
+    glCompileShader(vShaderBg);
+    unsigned int fShaderBg = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fShaderBg, 1, &fSourceC, NULL);
+    glCompileShader(fShaderBg);
+    backgroundShaderProgram = glCreateProgram();
+    glAttachShader(backgroundShaderProgram, vShaderBg);
+    glAttachShader(backgroundShaderProgram, fShaderBg);
+    glLinkProgram(backgroundShaderProgram);
+
+    // Setup background VAO/VBO
+    float quadVertices[] = {
+        // positions        // texCoords
+        -1.0f,  1.0f,       0.0f, 1.0f,
+        -1.0f, -1.0f,       0.0f, 0.0f,
+         1.0f, -1.0f,       1.0f, 0.0f,
+
+        -1.0f,  1.0f,       0.0f, 1.0f,
+         1.0f, -1.0f,       1.0f, 0.0f,
+         1.0f,  1.0f,       1.0f, 1.0f
+    };
+    glGenVertexArrays(1, &backgroundVAO);
+    glGenBuffers(1, &backgroundVBO);
+    glBindVertexArray(backgroundVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, backgroundVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glBindVertexArray(0);
+
+    // Load background texture
+    int texW, texH, nrChannels;
+    unsigned char* data = stbi_load("assets/textures/Manu/FondoMenu.jpg", &texW, &texH, &nrChannels, 0);
+    if (data) {
+        glGenTextures(1, &backgroundTexture);
+        glBindTexture(GL_TEXTURE_2D, backgroundTexture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texW, texH, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        stbi_image_free(data);
+    } else {
+        std::cerr << "Failed to load background image" << std::endl;
+    }
 
     // Prepare VAO/VBO
     glGenVertexArrays(1, &textVAO);
@@ -197,6 +268,15 @@ void Menu::HandleKeyEvent(int key) {
 void Menu::Render(unsigned int shaderProgram, unsigned int quadVAO, int width, int height) {
     glDisable(GL_DEPTH_TEST);
     
+    // Draw background
+    glUseProgram(backgroundShaderProgram);
+    glUniform1i(glGetUniformLocation(backgroundShaderProgram, "image"), 0);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, backgroundTexture);
+    glBindVertexArray(backgroundVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+
     // Dibujar texto directamente
     for (const auto& button : buttons) {
         glm::vec3 color = button.isHovered ? glm::vec3(0.0f, 0.5f, 0.8f) : glm::vec3(1.0f, 1.0f, 1.0f);
