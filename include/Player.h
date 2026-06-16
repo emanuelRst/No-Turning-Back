@@ -15,7 +15,7 @@ public:
 
     // Altura objetivo del jugador en unidades del mundo. El modelo se escala
     // dinámicamente desde su AABB para alcanzar esta altura.
-    static constexpr float kTargetHeight = 1.2f;
+    static constexpr float kTargetHeight = 1.3f;
 
     // Escala visual calculada al cargar el modelo desde su AABB.
     float GetVisualScale() const { return visualScale; }

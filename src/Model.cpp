@@ -44,7 +44,8 @@ float Model::GetAnimationDurationInSeconds(const std::string& animName) const {
     return 0.0f;
 }
 
-void Model::Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float animationTime, const std::string& animName, bool loop) {
+void Model::Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float animationTime, const std::string& animName, bool loop,
+                 float blendFactor, const std::string& prevAnimName, float prevAnimTime, bool prevAnimLoop) {
     if (shaderProgram != lastShaderProgram) {
         lastShaderProgram = shaderProgram;
         cachedModelLoc = glGetUniformLocation(shaderProgram, "model");
@@ -71,6 +72,25 @@ void Model::Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float
 
         m_BoneMatrices.resize(boneCount);
         ReadNodeHierarchy(AnimationTime, scene->mRootNode, glm::mat4(1.0f), animIndex);
+
+        if (blendFactor > 0.0f && !prevAnimName.empty()) {
+            auto prevIt = animationMapping.find(prevAnimName);
+            if (prevIt != animationMapping.end()) {
+                std::vector<glm::mat4> currentMatrices = m_BoneMatrices;
+                int prevAnimIndex = (int)prevIt->second;
+                const aiAnimation* prevAnim = scene->mAnimations[prevAnimIndex];
+                float prevTicksPerSecond = (float)(prevAnim->mTicksPerSecond != 0 ? prevAnim->mTicksPerSecond : 25.0f);
+                float prevTimeInTicks = prevAnimTime * prevTicksPerSecond;
+                float prevAnimationTime = prevAnimLoop
+                    ? fmod(prevTimeInTicks, (float)prevAnim->mDuration)
+                    : std::min(prevTimeInTicks, (float)prevAnim->mDuration);
+                ReadNodeHierarchy(prevAnimationTime, scene->mRootNode, glm::mat4(1.0f), prevAnimIndex);
+                for (unsigned int i = 0; i < m_BoneMatrices.size(); i++) {
+                    m_BoneMatrices[i] = m_BoneMatrices[i] * (1.0f - blendFactor) + currentMatrices[i] * blendFactor;
+                }
+            }
+        }
+
         for (unsigned int i = 0; i < m_BoneMatrices.size(); i++) {
              glUniformMatrix4fv(cachedBoneLocs[i], 1, GL_FALSE, glm::value_ptr(m_BoneMatrices[i]));
         }

@@ -71,6 +71,13 @@ private:
     float gameStartTimer = 0.0f;
     double animStateStartTime = 0.0;
     Player::AnimState lastAnimState = Player::AnimState::Run;
+    std::string prevAnimName = "";
+    float prevAnimTime = 0.0f;
+    bool prevAnimLoop = true;
+    std::string lastAnimName = "";
+    float lastAnimTime = 0.0f;
+    bool lastAnimLoop = true;
+    float crossFadeDuration = 0.25f;
 
     // Instancia estática para acceder desde el callback
     unsigned int groundVAO, groundVBO, groundEBO;

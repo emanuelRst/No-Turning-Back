@@ -649,8 +649,11 @@ void Game::RenderGameScene() {
             default:                      animName = "Run"; break;
         }
 
-        // Reiniciar tiempo de animacion si el estado cambio
+        // Crossfade: detectar transición de estado
         if (animState != lastAnimState) {
+            prevAnimName = lastAnimName;
+            prevAnimTime = lastAnimTime;
+            prevAnimLoop = lastAnimLoop;
             animStateStartTime = glfwGetTime();
             lastAnimState = animState;
         }
@@ -661,8 +664,30 @@ void Game::RenderGameScene() {
         } else if (animState == Player::AnimState::Dance && gameStartTimer > 0.0f) {
             animTime = 4.0f - gameStartTimer;
         }
+
+        // Calcular blend factor para crossfade
+        float blendFactor = 0.0f;
+        float blendPrevTime = 0.0f;
+        std::string blendPrevAnim = "";
+        bool blendPrevLoop = true;
+        if (!prevAnimName.empty() && prevAnimName != animName) {
+            float elapsedSinceTransition = (float)(glfwGetTime() - animStateStartTime);
+            blendFactor = glm::clamp(elapsedSinceTransition / crossFadeDuration, 0.0f, 1.0f);
+            blendPrevTime = prevAnimTime;
+            blendPrevAnim = prevAnimName;
+            blendPrevLoop = prevAnimLoop;
+            if (blendFactor >= 1.0f) {
+                prevAnimName = "";
+            }
+        }
         
-        playerModel->Draw(shaderProgram, visualModel, animTime, animName, loop);
+        playerModel->Draw(shaderProgram, visualModel, animTime, animName, loop,
+                          blendFactor, blendPrevAnim, blendPrevTime, blendPrevLoop);
+
+        // Guardar para el siguiente frame (necesario para crossfade)
+        lastAnimName = animName;
+        lastAnimTime = animTime;
+        lastAnimLoop = loop;
     } else {
         glUniform1i(uc.isAnimated, 0);
         glm::mat4 playerCube = glm::translate(glm::mat4(1.0f),

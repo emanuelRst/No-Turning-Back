@@ -45,7 +45,8 @@ public:
     ~Model();
 
     float GetAnimationDurationInSeconds(const std::string& animName) const;
-    void Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float animationTime, const std::string& animName = "", bool loop = true);
+    void Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float animationTime, const std::string& animName = "", bool loop = true,
+              float blendFactor = 0.0f, const std::string& prevAnimName = "", float prevAnimTime = 0.0f, bool prevAnimLoop = true);
     int GetAnimationIndex(const std::string& name) const;
 
     // AABB en espacio del asset (con transforms de nodos). Sirve para escenas estáticas.

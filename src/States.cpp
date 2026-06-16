@@ -16,9 +16,11 @@ RollingState::~RollingState() {}
 
 void RollingState::OnEnter(Player& player) {
     originalHitboxSize = player.GetHitboxSize();
-    glm::vec3 newSize = originalHitboxSize;
-    newSize.y *= 0.5f; // Reducción a la mitad
-    player.SetHitboxSize(newSize);
+    Hitbox hb = player.GetHitbox();
+    hb.size = originalHitboxSize;
+    hb.size.y *= 0.5f;
+    hb.centerOffset.y = hb.size.y * 0.5f;
+    player.SetHitbox(hb);
 }
 
 void RollingState::Update(Player& player, float deltaTime) {
@@ -29,5 +31,8 @@ void RollingState::Update(Player& player, float deltaTime) {
 }
 
 void RollingState::OnExit(Player& player) {
-    player.SetHitboxSize(originalHitboxSize);
+    Hitbox hb = player.GetHitbox();
+    hb.size = originalHitboxSize;
+    hb.centerOffset.y = originalHitboxSize.y * 0.5f;
+    player.SetHitbox(hb);
 }
