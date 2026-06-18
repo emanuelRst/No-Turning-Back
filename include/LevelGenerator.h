@@ -5,6 +5,7 @@
 #include "Train.h"
 #include "ObstacleOverhead.h"
 #include "RampTrain.h"
+#include "Coin.h"
 #include <vector>
 #include <random>
 
@@ -19,6 +20,7 @@ public:
     const std::vector<Train>& GetTrains() const { return trains; }
     const std::vector<ObstacleOverhead>& GetOverheads() const { return overheads; }
     const std::vector<RampTrain>& GetRamps() const { return ramps; }
+    std::vector<Coin>& GetCoins() { return coins; }
 
     const std::vector<GameObject*>& GetCollisionObjects() { return collisionCache; }
 
@@ -26,6 +28,7 @@ private:
     std::vector<Train> trains;
     std::vector<ObstacleOverhead> overheads;
     std::vector<RampTrain> ramps;
+    std::vector<Coin> coins;
 
     float nextSpawnZ;
     int trainsSpawned;

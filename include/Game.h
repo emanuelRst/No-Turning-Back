@@ -10,6 +10,7 @@
 
 #include <vector>
 #include <string>
+#include <nlohmann/json.hpp>
 
 // Forward declaration
 class Menu;
@@ -49,6 +50,9 @@ private:
     void ResetRun();
     void RenderGameScene();
     void RenderCharacterSelect();
+    void RenderHUD();
+    void SaveProgress();
+    void LoadProgress();
 
     GLFWwindow* window;
     int width, height;
@@ -92,6 +96,12 @@ private:
     // Instancia estática para acceder desde el callback
     unsigned int groundVAO, groundVBO, groundEBO;
     unsigned int groundTexture;
+
+    Model* coinModel;
+    int runCoins = 0;
+    int totalCoins = 0;
+    float score = 0.0f;
+    std::vector<bool> characterUnlocked;
 
     std::vector<CharacterOption> characters;
     int focusedSlot = 0;

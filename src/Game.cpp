@@ -110,11 +110,13 @@ Game::Game(int w, int h)
 }
 
 Game::~Game() {
+    SaveProgress();
     // characters es dueño de los modelos; playerModel solo apunta a uno de ellos
     for (auto& c : characters) {
         delete c.model;
     }
     playerModel = nullptr;
+    delete coinModel;
     delete skyboxModel;
     delete menu;
     delete gameOverMenu;
@@ -144,6 +146,10 @@ bool Game::Init() {
     // characters es dueño de los modelos; playerModel solo apunta al actual
     characters.push_back({"Thug", "assets/models/thug/tung.glb", new Model("assets/models/thug/tung.glb")});
     characters.push_back({"Alien", "assets/models/alien/alien.glb", new Model("assets/models/alien/alien.glb")});
+    characters.push_back({"Teto", "assets/models/Teto/Teto.glb", new Model("assets/models/Teto/Teto.glb")});
+    characterUnlocked.assign(characters.size(), false);
+    characterUnlocked[0] = true; // Thug siempre desbloqueado
+    LoadProgress();
     playerModel = characters[selectedModelIndex].model;
 
     // Ajustar hitbox del jugador usando el AABB en espacio del mesh (vértices crudos).
@@ -262,6 +268,9 @@ bool Game::Init() {
         glAttachShader(skyboxShaderProgram, fSkybox);
         glLinkProgram(skyboxShaderProgram);
     }
+
+    // Cargar modelo de moneda
+    coinModel = new Model("assets/scene/coin.glb");
 
     // Cargar modelo del skybox
     skyboxModel = new Model("assets/models/skybox/skyboxGalax.glb");
@@ -411,13 +420,19 @@ void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, in
                 if (instance->focusedSlot == numChars) {
                     instance->currentState = GameState::MENU;
                 } else if (instance->focusedSlot < numChars) {
-                    instance->selectedModelIndex = instance->focusedSlot;
-                    instance->playerModel = instance->characters[instance->focusedSlot].model;
-                    const ModelAABB loadedMeshAABB = instance->playerModel->GetMeshAABB();
-                    if (loadedMeshAABB.min.x < loadedMeshAABB.max.x && loadedMeshAABB.min.y < loadedMeshAABB.max.y) {
-                        instance->player.SetHitboxFromModelAABB(loadedMeshAABB);
+                    if (instance->characterUnlocked[instance->focusedSlot]) {
+                        instance->selectedModelIndex = instance->focusedSlot;
+                        instance->playerModel = instance->characters[instance->focusedSlot].model;
+                        const ModelAABB loadedMeshAABB = instance->playerModel->GetMeshAABB();
+                        if (loadedMeshAABB.min.x < loadedMeshAABB.max.x && loadedMeshAABB.min.y < loadedMeshAABB.max.y) {
+                            instance->player.SetHitboxFromModelAABB(loadedMeshAABB);
+                        }
+                        instance->currentState = GameState::MENU;
+                    } else if (instance->totalCoins >= 100) {
+                        instance->characterUnlocked[instance->focusedSlot] = true;
+                        instance->totalCoins -= 100;
+                        instance->SaveProgress();
                     }
-                    instance->currentState = GameState::MENU;
                 }
             }
         } else if (instance->currentState == GameState::MENU) {
@@ -509,13 +524,19 @@ void Game::MouseButtonCallback(GLFWwindow* window, int button, int action, int m
             float halfH = 150.0f;
             if (xpos >= cx - halfW && xpos <= cx + halfW &&
                 ypos >= centerY - halfH && ypos <= centerY + halfH) {
-                instance->selectedModelIndex = i;
-                instance->playerModel = instance->characters[i].model;
-                const ModelAABB loadedMeshAABB = instance->playerModel->GetMeshAABB();
-                if (loadedMeshAABB.min.x < loadedMeshAABB.max.x && loadedMeshAABB.min.y < loadedMeshAABB.max.y) {
-                    instance->player.SetHitboxFromModelAABB(loadedMeshAABB);
+                if (instance->characterUnlocked[i]) {
+                    instance->selectedModelIndex = i;
+                    instance->playerModel = instance->characters[i].model;
+                    const ModelAABB loadedMeshAABB = instance->playerModel->GetMeshAABB();
+                    if (loadedMeshAABB.min.x < loadedMeshAABB.max.x && loadedMeshAABB.min.y < loadedMeshAABB.max.y) {
+                        instance->player.SetHitboxFromModelAABB(loadedMeshAABB);
+                    }
+                    instance->currentState = GameState::MENU;
+                } else if (instance->totalCoins >= 100) {
+                    instance->characterUnlocked[i] = true;
+                    instance->totalCoins -= 100;
+                    instance->SaveProgress();
                 }
-                instance->currentState = GameState::MENU;
                 return;
             }
         }
@@ -640,6 +661,23 @@ void Game::Update(float deltaTime) {
 
     const auto& collisionObjects = levelGen.GetCollisionObjects();
     player.Update(deltaTime, collisionObjects);
+
+    // Score por distancia
+    score += currentSpeed * deltaTime;
+
+    // Colision con monedas
+    Bounds playerBounds = player.GetBounds();
+    for (Coin& coin : levelGen.GetCoins()) {
+        if (!coin.IsCollected()) {
+            Bounds coinBounds = coin.GetBounds();
+            if (BoundsIntersect(playerBounds, coinBounds)) {
+                coin.Collect();
+                runCoins++;
+                totalCoins++;
+                SaveProgress();
+            }
+        }
+    }
 }
 
 
@@ -653,6 +691,8 @@ void Game::ResetRun() {
     gameTime = 0.0f;
     gameStartTimer = 0.0f;
     groundScroll = 0.0f;
+    runCoins = 0;
+    score = 0.0f;
 
     const float playerZ = player.GetPosition().z;
     levelGen.Reset(playerZ);
@@ -725,6 +765,8 @@ void Game::Render() {
     }
 
     RenderGameScene();
+
+    RenderHUD();
 
     if (currentState == GameState::PAUSED) {
         int fbWidth, fbHeight;
@@ -882,6 +924,21 @@ void Game::RenderGameScene() {
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }
 
+    // Dibujar Monedas
+    if (coinModel) {
+        glUniform1i(uc.isAnimated, 0);
+        glUniform3f(uc.objectColor, 1.0f, 1.0f, 1.0f);
+        float coinRot = gameTime * 120.0f;
+        for (Coin& coin : levelGen.GetCoins()) {
+            if (coin.IsCollected()) continue;
+            const glm::vec3 cp = coin.GetPosition();
+            glm::mat4 coinMat = glm::translate(glm::mat4(1.0f), cp);
+            coinMat = glm::rotate(coinMat, glm::radians(coinRot), glm::vec3(0.0f, 1.0f, 0.0f));
+            coinMat = glm::scale(coinMat, glm::vec3(0.3f));
+            coinModel->Draw(shaderProgram, coinMat, 0.0f, "", false);
+        }
+    }
+
     // Dibujar Trenes
     glUniform1i(uc.isAnimated, 0);
     glUniform3f(uc.objectColor, 0.85f, 0.2f, 0.12f);
@@ -1010,7 +1067,10 @@ void Game::RenderCharacterSelect() {
 
     glDisable(GL_DEPTH_TEST);
 
-    // Render names below models
+    // Render coin balance at top
+    menu->RenderText("Coins: " + std::to_string(totalCoins), (float)fbWidth / 2.0f, 30.0f, 0.8f, glm::vec3(1.0f, 0.85f, 0.2f), fbWidth, fbHeight);
+
+    // Render names and status below models
     for (int i = 0; i < numChars; i++) {
         float spacing = 2.5f;
         float totalWidth = (numChars - 1) * spacing;
@@ -1025,7 +1085,16 @@ void Game::RenderCharacterSelect() {
 
         bool isFocused = (focusedSlot == i && focusedSlot < numChars);
         glm::vec3 nameColor = isFocused ? glm::vec3(1.0f, 0.8f, 0.2f) : glm::vec3(0.8f, 0.8f, 0.8f);
-        menu->RenderText(characters[i].name, screenX, screenY + 30.0f, 0.8f, nameColor, fbWidth, fbHeight);
+        menu->RenderText(characters[i].name, screenX, screenY + 30.0f, 0.7f, nameColor, fbWidth, fbHeight);
+
+        if (characterUnlocked[i]) {
+            glm::vec3 statusColor = isFocused ? glm::vec3(0.2f, 1.0f, 0.2f) : glm::vec3(0.6f, 0.6f, 0.6f);
+            menu->RenderText("SELECT", screenX, screenY + 65.0f, 0.5f, statusColor, fbWidth, fbHeight);
+        } else {
+            bool canAfford = (totalCoins >= 100);
+            glm::vec3 priceColor = canAfford ? glm::vec3(1.0f, 0.85f, 0.2f) : glm::vec3(1.0f, 0.3f, 0.3f);
+            menu->RenderText("100 COINS", screenX, screenY + 65.0f, 0.5f, priceColor, fbWidth, fbHeight);
+        }
     }
 
     // Render "Back" button
@@ -1036,4 +1105,49 @@ void Game::RenderCharacterSelect() {
     }
 
     glEnable(GL_DEPTH_TEST);
+}
+
+void Game::RenderHUD() {
+    if (currentState != GameState::PLAYING && currentState != GameState::PAUSED) return;
+
+    int fbWidth, fbHeight;
+    glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+
+    int scoreInt = (int)score;
+    menu->RenderText("Coins: " + std::to_string(runCoins), 20.0f, 20.0f, 0.6f, glm::vec3(1.0f, 0.85f, 0.2f), fbWidth, fbHeight);
+    menu->RenderText("Score: " + std::to_string(scoreInt), 20.0f, 65.0f, 0.6f, glm::vec3(1.0f, 1.0f, 1.0f), fbWidth, fbHeight);
+}
+
+void Game::SaveProgress() {
+    nlohmann::json j;
+    j["totalCoins"] = totalCoins;
+    j["selectedModelIndex"] = selectedModelIndex;
+    for (size_t i = 0; i < characterUnlocked.size(); ++i) {
+        j["unlocked"][i] = characterUnlocked[i];
+    }
+    std::ofstream file("save.json");
+    if (file.is_open()) {
+        file << j.dump(4);
+    }
+}
+
+void Game::LoadProgress() {
+    std::ifstream file("save.json");
+    if (!file.is_open()) return;
+    nlohmann::json j;
+    try {
+        file >> j;
+        if (j.contains("totalCoins")) totalCoins = j["totalCoins"];
+        if (j.contains("selectedModelIndex")) {
+            int idx = j["selectedModelIndex"];
+            if (idx >= 0 && idx < (int)characters.size()) {
+                selectedModelIndex = idx;
+            }
+        }
+        if (j.contains("unlocked")) {
+            for (size_t i = 0; i < j["unlocked"].size() && i < characterUnlocked.size(); ++i) {
+                characterUnlocked[i] = j["unlocked"][i];
+            }
+        }
+    } catch (...) {}
 }

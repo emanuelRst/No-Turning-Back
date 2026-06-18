@@ -17,6 +17,7 @@ void LevelGenerator::Reset(float playerZ) {
     trains.clear();
     overheads.clear();
     ramps.clear();
+    coins.clear();
 
     nextSpawnZ = playerZ - kSpawnDistance;
     trainsSpawned = 0;
@@ -41,6 +42,9 @@ void LevelGenerator::Update(float deltaTime, float currentSpeed, float playerZ, 
     }
     for (RampTrain& ramp : ramps) {
         ramp.Move(glm::vec3(0.0f, 0.0f, moveAmount));
+    }
+    for (Coin& coin : coins) {
+        coin.Move(glm::vec3(0.0f, 0.0f, moveAmount));
     }
 
     // Spawn new patterns when there is room ahead
@@ -80,6 +84,16 @@ void LevelGenerator::SpawnPattern(float playerZ, float gameTime) {
     // Hard: combos
     float roll = std::uniform_real_distribution<float>(0.0f, 1.0f)(rng);
     float adjusted = roll - difficulty * 0.3f;
+
+    // Spawn 3 coins in a vertical line (same lane, along Z) with ~30% probability
+    if (std::uniform_real_distribution<float>(0.0f, 1.0f)(rng) < 0.3f) {
+        int coinLane = PickLane();
+        float laneX = (coinLane - 1) * 3.0f;
+        float coinBaseZ = spawnZ + std::uniform_real_distribution<float>(2.0f, 12.0f)(rng);
+        for (int i = 0; i < 3; ++i) {
+            coins.emplace_back(glm::vec3(laneX, 0.5f, coinBaseZ + i * 1.5f));
+        }
+    }
 
     if (adjusted < 0.25f) {
         // Single train on random lane
@@ -141,6 +155,11 @@ void LevelGenerator::Cleanup(float playerZ) {
         return r.GetPosition().z > playerZ + kDespawnDistance;
     };
     ramps.erase(std::remove_if(ramps.begin(), ramps.end(), rampPast), ramps.end());
+
+    auto coinPast = [&](const Coin& c) {
+        return c.GetPosition().z > playerZ + kDespawnDistance;
+    };
+    coins.erase(std::remove_if(coins.begin(), coins.end(), coinPast), coins.end());
 }
 
 void LevelGenerator::RebuildCollisionCache() {
