@@ -56,8 +56,10 @@ Game::Game(int w, int h)
     }, "assets/audio/Menu/MenuEfecto.wav");
 
     // Botón 2: Change Characters (Y: 675)
-    menu->AddButton("Change Characters", fixedX, 690, targetButtonWidth, targetButtonHeight, [](){ 
-        std::cout << "Characters\n"; 
+    menu->AddButton("Change Characters", fixedX, 690, targetButtonWidth, targetButtonHeight, [this](){ 
+        this->focusedSlot = 0;
+        this->charSelectTime = 0.0f;
+        this->currentState = GameState::CHARACTER_SELECT;
     }, "assets/audio/Menu/MenuEfecto.wav");
 
     // Botón 3: Help (Y: 730)
@@ -108,7 +110,11 @@ Game::Game(int w, int h)
 }
 
 Game::~Game() {
-    delete playerModel;
+    // characters es dueño de los modelos; playerModel solo apunta a uno de ellos
+    for (auto& c : characters) {
+        delete c.model;
+    }
+    playerModel = nullptr;
     delete skyboxModel;
     delete menu;
     delete gameOverMenu;
@@ -134,8 +140,11 @@ bool Game::Init() {
     pauseMenu->Init("assets/fonts/Hippopotamus Apocalypse.otf");
     helpMenu->Init("assets/fonts/Hippopotamus Apocalypse.otf");
 
-    // Cargar modelo del jugador
-    playerModel = new Model("assets/models/thug/tung.glb");
+    // Cargar modelos de personajes seleccionables
+    // characters es dueño de los modelos; playerModel solo apunta al actual
+    characters.push_back({"Thug", "assets/models/thug/tung.glb", new Model("assets/models/thug/tung.glb")});
+    characters.push_back({"Alien", "assets/models/alien/alien.glb", new Model("assets/models/alien/alien.glb")});
+    playerModel = characters[selectedModelIndex].model;
 
     // Ajustar hitbox del jugador usando el AABB en espacio del mesh (vértices crudos).
     // Para modelos skinned los transforms de nodo se cancelan vía huesos en bind pose,
@@ -365,7 +374,9 @@ bool Game::Init() {
 void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (instance && action == GLFW_PRESS) {
         if (key == GLFW_KEY_ESCAPE) {
-            if (instance->currentState == GameState::MENU) {
+            if (instance->currentState == GameState::CHARACTER_SELECT) {
+                instance->currentState = GameState::MENU;
+            } else if (instance->currentState == GameState::MENU) {
                 glfwSetWindowShouldClose(window, true);
             } else if (instance->currentState == GameState::PLAYING) {
                 instance->currentState = GameState::PAUSED;
@@ -379,7 +390,37 @@ void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, in
             // GAME_OVER: ESC no hace nada
         }
         
-        if (instance->currentState == GameState::MENU) {
+        if (instance->currentState == GameState::CHARACTER_SELECT) {
+            int numChars = (int)instance->characters.size();
+            // focusedSlot: 0..numChars-1 = characters, numChars = Back button
+            if (key == GLFW_KEY_RIGHT || key == GLFW_KEY_D) {
+                if (instance->focusedSlot < numChars) {
+                    instance->focusedSlot = (instance->focusedSlot + 1) % numChars;
+                }
+            } else if (key == GLFW_KEY_LEFT || key == GLFW_KEY_A) {
+                if (instance->focusedSlot < numChars) {
+                    instance->focusedSlot = (instance->focusedSlot - 1 + numChars) % numChars;
+                }
+            } else if (key == GLFW_KEY_DOWN || key == GLFW_KEY_S) {
+                instance->focusedSlot = numChars; // Back button
+            } else if (key == GLFW_KEY_UP || key == GLFW_KEY_W) {
+                if (instance->focusedSlot == numChars) {
+                    instance->focusedSlot = 0;
+                }
+            } else if (key == GLFW_KEY_ENTER) {
+                if (instance->focusedSlot == numChars) {
+                    instance->currentState = GameState::MENU;
+                } else if (instance->focusedSlot < numChars) {
+                    instance->selectedModelIndex = instance->focusedSlot;
+                    instance->playerModel = instance->characters[instance->focusedSlot].model;
+                    const ModelAABB loadedMeshAABB = instance->playerModel->GetMeshAABB();
+                    if (loadedMeshAABB.min.x < loadedMeshAABB.max.x && loadedMeshAABB.min.y < loadedMeshAABB.max.y) {
+                        instance->player.SetHitboxFromModelAABB(loadedMeshAABB);
+                    }
+                    instance->currentState = GameState::MENU;
+                }
+            }
+        } else if (instance->currentState == GameState::MENU) {
             instance->menu->HandleKeyEvent(key);
         } else if (instance->currentState == GameState::GAME_OVER) {
             instance->gameOverMenu->HandleKeyEvent(key);
@@ -405,7 +446,42 @@ void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, in
 
 void Game::CursorPosCallback(GLFWwindow* window, double xpos, double ypos) {
     if (!instance) return;
-    if (instance->currentState == GameState::MENU) {
+    if (instance->currentState == GameState::CHARACTER_SELECT) {
+        int fbWidth, fbHeight;
+        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+        int numChars = (int)instance->characters.size();
+        float centerY = (float)fbHeight * 0.45f;
+        float charWidth = (float)fbWidth / (numChars + 1);
+        float startX = charWidth;
+        bool hoveredAny = false;
+        for (int i = 0; i < numChars; i++) {
+            float cx = startX + i * charWidth;
+            float halfW = charWidth * 0.3f;
+            float halfH = 150.0f;
+            if (xpos >= cx - halfW && xpos <= cx + halfW &&
+                ypos >= centerY - halfH && ypos <= centerY + halfH) {
+                instance->focusedSlot = i;
+                hoveredAny = true;
+                break;
+            }
+        }
+        if (!hoveredAny) {
+            // Check Back button
+            float backX = (float)fbWidth / 2.0f;
+            float backY = (float)fbHeight * 0.85f;
+            float halfW = 150.0f;
+            float halfH = 40.0f;
+            if (xpos >= backX - halfW && xpos <= backX + halfW &&
+                ypos >= backY - halfH && ypos <= backY + halfH) {
+                instance->focusedSlot = numChars;
+                instance->charSelectBackHovered = true;
+            } else {
+                instance->charSelectBackHovered = false;
+            }
+        } else {
+            instance->charSelectBackHovered = false;
+        }
+    } else if (instance->currentState == GameState::MENU) {
         instance->menu->SetMousePos(xpos, ypos);
     } else if (instance->currentState == GameState::GAME_OVER) {
         instance->gameOverMenu->SetMousePos(xpos, ypos);
@@ -420,7 +496,40 @@ void Game::MouseButtonCallback(GLFWwindow* window, int button, int action, int m
     if (!instance || action != GLFW_PRESS) return;
     double xpos, ypos;
     glfwGetCursorPos(window, &xpos, &ypos);
-    if (instance->currentState == GameState::MENU) {
+    if (instance->currentState == GameState::CHARACTER_SELECT) {
+        int fbWidth, fbHeight;
+        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+        int numChars = (int)instance->characters.size();
+        float centerY = (float)fbHeight * 0.45f;
+        float charWidth = (float)fbWidth / (numChars + 1);
+        float startX = charWidth;
+        for (int i = 0; i < numChars; i++) {
+            float cx = startX + i * charWidth;
+            float halfW = charWidth * 0.3f;
+            float halfH = 150.0f;
+            if (xpos >= cx - halfW && xpos <= cx + halfW &&
+                ypos >= centerY - halfH && ypos <= centerY + halfH) {
+                instance->selectedModelIndex = i;
+                instance->playerModel = instance->characters[i].model;
+                const ModelAABB loadedMeshAABB = instance->playerModel->GetMeshAABB();
+                if (loadedMeshAABB.min.x < loadedMeshAABB.max.x && loadedMeshAABB.min.y < loadedMeshAABB.max.y) {
+                    instance->player.SetHitboxFromModelAABB(loadedMeshAABB);
+                }
+                instance->currentState = GameState::MENU;
+                return;
+            }
+        }
+        // Check Back button
+        float backX = (float)fbWidth / 2.0f;
+        float backY = (float)fbHeight * 0.85f;
+        float halfW = 150.0f;
+        float halfH = 40.0f;
+        if (xpos >= backX - halfW && xpos <= backX + halfW &&
+            ypos >= backY - halfH && ypos <= backY + halfH) {
+            instance->currentState = GameState::MENU;
+            return;
+        }
+    } else if (instance->currentState == GameState::MENU) {
         instance->menu->HandleClick(xpos, ypos);
     } else if (instance->currentState == GameState::GAME_OVER) {
         instance->gameOverMenu->HandleClick(xpos, ypos);
@@ -466,6 +575,15 @@ void Game::Update(float deltaTime) {
             menu->StopAmbient();
         }
         prevState = currentState;
+    }
+
+    if (currentState == GameState::CHARACTER_SELECT) {
+        charSelectTime += deltaTime;
+        // Smooth scale for back button
+        float smoothSpeed = 10.0f;
+        float targetScale = charSelectBackHovered ? 1.2f : 1.0f;
+        charSelectBackScale += (targetScale - charSelectBackScale) * smoothSpeed * deltaTime;
+        return;
     }
 
     if (currentState == GameState::MENU) {
@@ -561,6 +679,12 @@ void Game::ResetRun() {
 
 void Game::Render() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    if (currentState == GameState::CHARACTER_SELECT) {
+        RenderCharacterSelect();
+        glfwSwapBuffers(window);
+        return;
+    }
 
     if (currentState == GameState::MENU) {
         int fbWidth, fbHeight;
@@ -825,4 +949,91 @@ void Game::RenderGameScene() {
         glUniformMatrix4fv(uc.model, 1, GL_FALSE, glm::value_ptr(wallModel));
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }
+}
+
+void Game::RenderCharacterSelect() {
+    int fbWidth, fbHeight;
+    glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+
+    glViewport(0, 0, fbWidth, fbHeight);
+    glClearColor(0.05f, 0.05f, 0.1f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    float aspect = (float)fbWidth / (float)fbHeight;
+    glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
+    glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 1.2f, 4.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+    glUseProgram(shaderProgram);
+
+    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+    glUniform3f(glGetUniformLocation(shaderProgram, "lightPos"), 5.0f, 10.0f, 5.0f);
+    glUniform3f(glGetUniformLocation(shaderProgram, "viewPos"), 0.0f, 1.2f, 4.0f);
+    glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"), 1.0f, 1.0f, 1.0f);
+    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 1.0f, 1.0f);
+    glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 1);
+    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 1);
+
+    int numChars = (int)characters.size();
+
+    for (int i = 0; i < numChars; i++) {
+        if (!characters[i].model) continue;
+
+        bool isFocused = (focusedSlot == i && focusedSlot < numChars);
+        const ModelAABB& meshAABB = characters[i].model->GetMeshAABB();
+        glm::vec3 size = meshAABB.max - meshAABB.min;
+        float maxExtent = std::max({size.x, size.y, size.z});
+        float previewScale = (maxExtent > 0.0f) ? (1.5f / maxExtent) : 1.0f;
+
+        float spacing = 2.5f;
+        float totalWidth = (numChars - 1) * spacing;
+        float startX = -totalWidth / 2.0f;
+        float posX = startX + i * spacing;
+
+        glm::mat4 modelMat = glm::mat4(1.0f);
+        modelMat = glm::translate(modelMat, glm::vec3(posX, 0.0f, 0.0f));
+        modelMat = glm::translate(modelMat, glm::vec3(0.0f, -meshAABB.min.y * previewScale, 0.0f));
+
+        if (isFocused) {
+        } else {
+            float rotAngle = charSelectTime * 60.0f;
+            modelMat = glm::rotate(modelMat, glm::radians(rotAngle), glm::vec3(0.0f, 1.0f, 0.0f));
+        }
+
+        modelMat = glm::scale(modelMat, glm::vec3(previewScale));
+
+        std::string animName = isFocused ? "Dance" : "T_Pose";
+        float animTime = isFocused ? charSelectTime : charSelectTime;
+
+        characters[i].model->Draw(shaderProgram, modelMat, animTime, animName, true);
+    }
+
+    glDisable(GL_DEPTH_TEST);
+
+    // Render names below models
+    for (int i = 0; i < numChars; i++) {
+        float spacing = 2.5f;
+        float totalWidth = (numChars - 1) * spacing;
+        float startX = -totalWidth / 2.0f;
+        float posX = startX + i * spacing;
+
+        // Project 3D position to screen coordinates
+        glm::vec4 clipPos = projection * view * glm::vec4(posX, -0.8f, 0.0f, 1.0f);
+        glm::vec3 ndc = glm::vec3(clipPos) / clipPos.w;
+        float screenX = (ndc.x * 0.5f + 0.5f) * fbWidth;
+        float screenY = (1.0f - (ndc.y * 0.5f + 0.5f)) * fbHeight;
+
+        bool isFocused = (focusedSlot == i && focusedSlot < numChars);
+        glm::vec3 nameColor = isFocused ? glm::vec3(1.0f, 0.8f, 0.2f) : glm::vec3(0.8f, 0.8f, 0.8f);
+        menu->RenderText(characters[i].name, screenX, screenY + 30.0f, 0.8f, nameColor, fbWidth, fbHeight);
+    }
+
+    // Render "Back" button
+    {
+        bool isBackFocused = (focusedSlot == numChars);
+        glm::vec3 backColor = isBackFocused ? glm::vec3(1.0f, 0.0f, 0.0f) : glm::vec3(1.0f, 1.0f, 1.0f);
+        menu->RenderText("Back", (float)fbWidth / 2.0f, (float)fbHeight * 0.85f, charSelectBackScale, backColor, fbWidth, fbHeight);
+    }
+
+    glEnable(GL_DEPTH_TEST);
 }

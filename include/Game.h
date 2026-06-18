@@ -14,7 +14,7 @@
 // Forward declaration
 class Menu;
 
-enum class GameState { MENU, PLAYING, GAME_OVER, PAUSED, HELP };
+enum class GameState { MENU, PLAYING, GAME_OVER, PAUSED, HELP, CHARACTER_SELECT };
 
 // Clase sencilla para los segmentos del suelo
 class GroundSegment : public GameObject {
@@ -48,6 +48,7 @@ private:
     void ResetTrain(Train& train);
     void ResetRun();
     void RenderGameScene();
+    void RenderCharacterSelect();
 
     GLFWwindow* window;
     int width, height;
@@ -82,9 +83,22 @@ private:
     bool lastAnimLoop = true;
     float crossFadeDuration = 0.25f;
 
+    struct CharacterOption {
+        std::string name;
+        std::string modelPath;
+        Model* model;
+    };
+
     // Instancia estática para acceder desde el callback
     unsigned int groundVAO, groundVBO, groundEBO;
     unsigned int groundTexture;
+
+    std::vector<CharacterOption> characters;
+    int focusedSlot = 0;
+    int selectedModelIndex = 0;
+    float charSelectTime = 0.0f;
+    bool charSelectBackHovered = false;
+    float charSelectBackScale = 1.0f;
 
     unsigned int menuFBO = 0;
     unsigned int menuFBOTexture = 0;
