@@ -518,7 +518,7 @@ void Game::Render() {
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        menu->Render(menuShaderProgram, VAO, fbWidth, fbHeight);
+        menu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, true);
 
         glfwSwapBuffers(window);
         return;
@@ -527,7 +527,7 @@ void Game::Render() {
     if (currentState == GameState::HELP) {
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
-        helpMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight);
+        helpMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, false);
 
        // Eliminamos el "- 50.0f" para que use el centro geométrico exacto
         helpMenu->RenderImage("assets/textures/Manu/wasd.png", fbWidth / 2.0f, fbHeight / 2.0f + 200.0f, 400.0f, 400.0f, fbWidth, fbHeight);
@@ -539,7 +539,7 @@ void Game::Render() {
     if (currentState == GameState::GAME_OVER) {
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
-        gameOverMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight);
+        gameOverMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, false);
         
         // Dibujar texto "Perdiste"
         gameOverMenu->RenderText("Game Over", fbWidth / 2.0f, fbHeight / 2.0f - 100.0f, 1.5f, glm::vec3(1.0f, 0.0f, 0.0f), fbWidth, fbHeight);
@@ -553,7 +553,7 @@ void Game::Render() {
     if (currentState == GameState::PAUSED) {
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
-        pauseMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight);
+        pauseMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, false);
     }
 }
 

@@ -35,7 +35,7 @@ public:
     void Init(const std::string& fontPath);
     void SetMousePos(double x, double y);
     void Update(float deltaTime, int width, int height);
-    void Render(unsigned int shaderProgram, unsigned int quadVAO, int width, int height);
+    void Render(unsigned int shaderProgram, unsigned int quadVAO, int width, int height, bool drawBackground = true);
     void RenderText(const std::string& text, float x, float y, float scale, glm::vec3 color, int width, int height);
     void RenderImage(const std::string& imagePath, float x, float y, float w, float h, int width, int height);
     bool HandleClick(double mouseX, double mouseY);
@@ -49,6 +49,7 @@ public:
 private:
     std::vector<Button> buttons;
     double mouseX = 0.0, mouseY = 0.0;
+    float time = 0.0f; // Track time for effects
     int selectedButtonIndex = -1; // Índice del botón seleccionado por teclado
     
     AudioManager audioManager;

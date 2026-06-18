@@ -242,6 +242,7 @@ void Menu::SetMousePos(double x, double y) {
 }
 
 void Menu::Update(float deltaTime, int width, int height) {
+    time += deltaTime;
     float smoothSpeed = 10.0f; // Velocidad de suavizado
 
     for (int i = 0; i < buttons.size(); ++i) {
@@ -291,17 +292,20 @@ void Menu::HandleKeyEvent(int key) {
     }
 }
 
-void Menu::Render(unsigned int shaderProgram, unsigned int quadVAO, int width, int height) {
+void Menu::Render(unsigned int shaderProgram, unsigned int quadVAO, int width, int height, bool drawBackground) {
     glDisable(GL_DEPTH_TEST);
     
     // Draw background
-    glUseProgram(backgroundShaderProgram);
-    glUniform1i(glGetUniformLocation(backgroundShaderProgram, "image"), 0);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, backgroundTexture);
-    glBindVertexArray(backgroundVAO);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    glBindVertexArray(0);
+    if (drawBackground) {
+        glUseProgram(backgroundShaderProgram);
+        glUniform1i(glGetUniformLocation(backgroundShaderProgram, "image"), 0);
+        glUniform1f(glGetUniformLocation(backgroundShaderProgram, "u_time"), time);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, backgroundTexture);
+        glBindVertexArray(backgroundVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindVertexArray(0);
+    }
 
     // Dibujar texto directamente
     for (const auto& button : buttons) {
