@@ -164,16 +164,12 @@ void Player::UpdatePhysics(float deltaTime, const std::vector<GameObject*>& coll
             return;
         }
 
-        // Determinar dirección del choque
-        // Lateral: el solapamiento X es menor a la mitad del ancho del obstáculo
-        // (el jugador está rozando, no ha cruzado el centro del obstáculo)
         Bounds blockerBounds = blocker->GetBounds();
         float playerHalfW = GetHitboxSize().x * 0.5f;
-        float obstacleHalfW = (blockerBounds.max.x - blockerBounds.min.x) * 0.5f;
         float overlapLeft = std::max(position.x - playerHalfW, blockerBounds.min.x);
         float overlapRight = std::min(position.x + playerHalfW, blockerBounds.max.x);
         float overlapX = std::max(0.0f, overlapRight - overlapLeft);
-        bool isFrontal = overlapX > obstacleHalfW;
+        bool isFrontal = overlapX > playerHalfW;
 
         if (isFrontal) {
             hasCrashed = true;

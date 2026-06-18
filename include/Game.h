@@ -61,10 +61,13 @@ private:
     // Shader program y buffers
     unsigned int shaderProgram;
     unsigned int menuShaderProgram;
+    unsigned int skyboxShaderProgram;
     unsigned int VAO;
     Model* playerModel;
+    Model* skyboxModel;
     LevelGenerator levelGen;
     std::vector<GroundSegment> groundSegments;
+    std::vector<GroundSegment> wallSegments;
 
     float gameTime;
     float groundScroll;

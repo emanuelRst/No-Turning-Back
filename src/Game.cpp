@@ -29,11 +29,13 @@ constexpr float kBaseTrainSpeed = 20.0f;
 constexpr float kSpeedRampTime = 300.0f;
 constexpr float kGroundSegmentLength = 20.0f;
 constexpr int kNumGroundSegments = 5;
+constexpr float kWallHeight = 5.0f;
+constexpr float kWallThickness = 0.6f;
 }
 
 Game::Game(int w, int h)
     : window(nullptr), width(w), height(h), shaderProgram(0), VAO(0),
-      playerModel(nullptr), gameTime(0.0f), groundScroll(0.0f),
+      playerModel(nullptr), skyboxModel(nullptr), skyboxShaderProgram(0), gameTime(0.0f), groundScroll(0.0f),
       currentState(GameState::MENU), menu(new Menu()), gameOverMenu(new Menu()), pauseMenu(new Menu()), helpMenu(new Menu()) {
     instance = this;
 
@@ -107,6 +109,7 @@ Game::Game(int w, int h)
 
 Game::~Game() {
     delete playerModel;
+    delete skyboxModel;
     delete menu;
     delete gameOverMenu;
     delete pauseMenu;
@@ -232,6 +235,27 @@ bool Game::Init() {
     glAttachShader(menuShaderProgram, vMenuShader);
     glAttachShader(menuShaderProgram, fMenuShader);
     glLinkProgram(menuShaderProgram);
+
+    // Compilar Skybox Shader
+    {
+        std::string skyboxVCode = ReadFile("assets/shaders/skybox.vert");
+        std::string skyboxFCode = ReadFile("assets/shaders/skybox.frag");
+        const char* skyboxVSrc = skyboxVCode.c_str();
+        const char* skyboxFSrc = skyboxFCode.c_str();
+        unsigned int vSkybox = glCreateShader(GL_VERTEX_SHADER);
+        glShaderSource(vSkybox, 1, &skyboxVSrc, NULL);
+        glCompileShader(vSkybox);
+        unsigned int fSkybox = glCreateShader(GL_FRAGMENT_SHADER);
+        glShaderSource(fSkybox, 1, &skyboxFSrc, NULL);
+        glCompileShader(fSkybox);
+        skyboxShaderProgram = glCreateProgram();
+        glAttachShader(skyboxShaderProgram, vSkybox);
+        glAttachShader(skyboxShaderProgram, fSkybox);
+        glLinkProgram(skyboxShaderProgram);
+    }
+
+    // Cargar modelo del skybox
+    skyboxModel = new Model("assets/models/skybox/skyboxGalax.glb");
 
     // VAO del Jugador (y otros objetos sin textura)
     float verticesNoTex[] = {
@@ -522,6 +546,17 @@ void Game::ResetRun() {
         float zPos = playerZ - (i * kGroundSegmentLength);
         groundSegments.emplace_back(glm::vec3(0.0f, 0.0f, zPos), glm::vec3(kGroundWidth, 0.1f, kGroundSegmentLength));
     }
+
+    wallSegments.clear();
+    for (int i = 0; i < kNumGroundSegments; ++i) {
+        float zPos = playerZ - (i * kGroundSegmentLength);
+        wallSegments.emplace_back(
+            glm::vec3(-kGroundWidth / 2.0f - kWallThickness / 2.0f, kWallHeight, zPos),
+            glm::vec3(kWallThickness, kWallHeight, kGroundSegmentLength));
+        wallSegments.emplace_back(
+            glm::vec3(kGroundWidth / 2.0f + kWallThickness / 2.0f, kWallHeight, zPos),
+            glm::vec3(kWallThickness, kWallHeight, kGroundSegmentLength));
+    }
 }
 
 void Game::Render() {
@@ -575,6 +610,37 @@ void Game::Render() {
 }
 
 void Game::RenderGameScene() {
+    glm::vec3 pos = player.GetPosition();
+    glm::vec3 playerSize = player.GetCollisionSize();
+
+    glm::vec3 cameraTarget(pos.x, pos.y, pos.z);
+    glm::vec3 cameraPos = cameraTarget + glm::vec3(0.0f, 3.0f, 6.0f);
+    glm::mat4 view = glm::lookAt(cameraPos, cameraTarget, glm::vec3(0.0f, 1.0f, 0.0f));
+
+    int fbWidth, fbHeight;
+    glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+    float aspect = (float)fbWidth / (float)fbHeight;
+    glm::mat4 projection = glm::perspective(glm::radians(60.0f), aspect, 0.1f, 100.0f);
+
+    // --- Skybox: se renderiza primero, detrás de todo ---
+    if (skyboxModel && (currentState == GameState::PLAYING || currentState == GameState::PAUSED)) {
+        glDepthMask(GL_FALSE);
+        glUseProgram(skyboxShaderProgram);
+
+        glm::mat4 skyboxView = glm::mat4(glm::mat3(view));
+        float rotationAngle = gameTime * 30.0f;
+        glm::mat4 skyboxModelMat = glm::rotate(glm::mat4(1.0f), glm::radians(rotationAngle), glm::vec3(1.0f, 0.0f, 0.0f));
+        skyboxModelMat = glm::scale(skyboxModelMat, glm::vec3(50.0f));
+
+        glUniformMatrix4fv(glGetUniformLocation(skyboxShaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(skyboxView));
+        glUniformMatrix4fv(glGetUniformLocation(skyboxShaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+
+        skyboxModel->Draw(skyboxShaderProgram, skyboxModelMat, 0.0f, "", false);
+
+        glDepthMask(GL_TRUE);
+    }
+
+    // --- Escena normal ---
     glUseProgram(shaderProgram);
 
     struct UniformCache {
@@ -594,18 +660,6 @@ void Game::RenderGameScene() {
         uc.model = glGetUniformLocation(shaderProgram, "model");
         uc.useTexture = glGetUniformLocation(shaderProgram, "useTexture");
     }
-
-    glm::vec3 pos = player.GetPosition();
-    glm::vec3 playerSize = player.GetCollisionSize();
-
-    glm::vec3 cameraTarget(pos.x, pos.y, pos.z);
-    glm::vec3 cameraPos = cameraTarget + glm::vec3(0.0f, 3.0f, 6.0f);
-    glm::mat4 view = glm::lookAt(cameraPos, cameraTarget, glm::vec3(0.0f, 1.0f, 0.0f));
-
-    int fbWidth, fbHeight;
-    glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
-    float aspect = (float)fbWidth / (float)fbHeight;
-    glm::mat4 projection = glm::perspective(glm::radians(60.0f), aspect, 0.1f, 100.0f);
 
     glUniformMatrix4fv(uc.view, 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(uc.projection, 1, GL_FALSE, glm::value_ptr(projection));
@@ -755,6 +809,20 @@ void Game::RenderGameScene() {
                                             glm::vec3(sp.x, sp.y - ss.y * 0.5f, sp.z + scrollZ));
         segModel = glm::scale(segModel, ss * kCubeScaleFactor);
         glUniformMatrix4fv(uc.model, 1, GL_FALSE, glm::value_ptr(segModel));
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+    }
+
+    // Dibujar Paredes laterales
+    glUniform3f(uc.objectColor, 0.2f, 0.15f, 0.1f);
+    glUniform1i(uc.useTexture, 0);
+    glBindVertexArray(VAO);
+    for (const auto& wall : wallSegments) {
+        const glm::vec3 wp = wall.GetPosition();
+        const glm::vec3 ws = wall.GetHitboxSize();
+        glm::mat4 wallModel = glm::translate(glm::mat4(1.0f),
+                                            glm::vec3(wp.x, wp.y - ws.y * 0.5f, wp.z + scrollZ));
+        wallModel = glm::scale(wallModel, ws * kCubeScaleFactor);
+        glUniformMatrix4fv(uc.model, 1, GL_FALSE, glm::value_ptr(wallModel));
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }
 }

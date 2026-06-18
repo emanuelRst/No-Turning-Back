@@ -280,6 +280,9 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
         if (diffuseMaps.empty()) {
             diffuseMaps = loadMaterialTextures(material, aiTextureType_BASE_COLOR, "texture_diffuse");
         }
+        if (diffuseMaps.empty()) {
+            diffuseMaps = loadMaterialTextures(material, aiTextureType_EMISSIVE, "texture_diffuse");
+        }
         newMesh.textures.insert(newMesh.textures.end(), diffuseMaps.begin(), diffuseMaps.end());
     }
 
