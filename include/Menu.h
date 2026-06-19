@@ -55,6 +55,7 @@ private:
     AudioManager audioManager;
     
     ALuint ambientBuffer = 0;
+    ALuint sharedHoverSoundBuffer = 0; // NEW
     
     std::map<char, Character> Characters;
     unsigned int textVAO, textVBO;

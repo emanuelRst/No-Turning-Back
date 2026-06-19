@@ -68,6 +68,9 @@ Menu::~Menu() {
     for (auto const& [path, tex] : imageTextures) {
         glDeleteTextures(1, &tex);
     }
+    if (sharedHoverSoundBuffer != 0) {
+        alDeleteBuffers(1, &sharedHoverSoundBuffer);
+    }
 }
 
 float Menu::GetTextWidth(const std::string& text, float scale) {
@@ -237,6 +240,7 @@ void Menu::Init(const std::string& fontPath, const std::string& bgPath) {
     }
 
     audioManager.LoadSound("assets/audio/Menu/MenuAmbiente.wav", ambientBuffer);
+    audioManager.LoadSound("assets/audio/Menu/Voicy_Obtain.wav", sharedHoverSoundBuffer);
 }
 
 void Menu::SetMousePos(double x, double y) {
@@ -266,8 +270,9 @@ void Menu::Update(float deltaTime, int width, int height) {
         }
         
         if (button.isHovered && !button.wasHovered) {
-            if (button.hoverSoundBuffer != 0) {
-                audioManager.PlaySound(button.hoverSoundBuffer);
+            ALuint soundToPlay = (button.hoverSoundBuffer != 0) ? button.hoverSoundBuffer : sharedHoverSoundBuffer;
+            if (soundToPlay != 0) {
+                audioManager.PlaySound(soundToPlay);
             }
         }
         button.wasHovered = button.isHovered;
@@ -283,9 +288,11 @@ void Menu::HandleKeyEvent(int key) {
     if (key == GLFW_KEY_UP) {
         selectedButtonIndex--;
         if (selectedButtonIndex < 0) selectedButtonIndex = (int)buttons.size() - 1;
+        if (sharedHoverSoundBuffer != 0) audioManager.PlaySound(sharedHoverSoundBuffer);
     } else if (key == GLFW_KEY_DOWN) {
         selectedButtonIndex++;
         if (selectedButtonIndex >= (int)buttons.size()) selectedButtonIndex = 0;
+        if (sharedHoverSoundBuffer != 0) audioManager.PlaySound(sharedHoverSoundBuffer);
     } else if (key == GLFW_KEY_ENTER) {
         if (selectedButtonIndex >= 0 && selectedButtonIndex < (int)buttons.size()) {
             if (buttons[selectedButtonIndex].onClick) {
