@@ -57,6 +57,7 @@ private:
     Menu* gameOverMenu;
     Menu* pauseMenu;
     Menu* helpMenu;
+    Menu* helpMenuKeys; // NEW
     
     // Shader program y buffers
     unsigned int shaderProgram;

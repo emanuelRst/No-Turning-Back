@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <utility> // For std::pair
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -34,7 +35,7 @@ constexpr int kNumGroundSegments = 5;
 Game::Game(int w, int h)
     : window(nullptr), width(w), height(h), shaderProgram(0), VAO(0),
       playerModel(nullptr), gameTime(0.0f), groundScroll(0.0f),
-      currentState(GameState::MENU), menu(new Menu()), gameOverMenu(new Menu()), pauseMenu(new Menu()), helpMenu(new Menu()) {
+      currentState(GameState::MENU), menu(new Menu()), gameOverMenu(new Menu()), pauseMenu(new Menu()), helpMenu(new Menu()), helpMenuKeys(new Menu()) {
     instance = this;
 
     float buttonWidth = 250.0f;
@@ -98,7 +99,7 @@ Game::Game(int w, int h)
     helpMenu->AddButton("Back", ((float)width / 2.0f) + 567.0f, (float)height + 300.0f, 300, 100, [this](){
         this->currentState = GameState::MENU;
     }, "assets/audio/Menu/MenuEfecto.wav");
-
+    
     ResetRun();
 }
 
@@ -108,6 +109,7 @@ Game::~Game() {
     delete gameOverMenu;
     delete pauseMenu;
     delete helpMenu;
+    delete helpMenuKeys;
     glfwTerminate();
 }
 
@@ -127,6 +129,7 @@ bool Game::Init() {
     gameOverMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Manu/FondoMenu.jpg");
     pauseMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Manu/FondoMenu.jpg");
     helpMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Manu/FondoMenu.png");
+    helpMenuKeys->Init("assets/fonts/DirtyWar.otf", "assets/textures/Manu/FondoMenu.png");
 
     // Cargar modelo del jugador
     playerModel = new Model("assets/models/soldier/Soldier.glb");
@@ -506,6 +509,25 @@ void Game::ResetRun() {
     }
 }
 
+static void RenderMixedText(Menu* normal, Menu* keyFont,
+    const std::vector<std::pair<std::string, bool>>& segments,
+    float baseX, float y, float scale, glm::vec3 color,
+    int fbWidth, int fbHeight)
+{
+    float totalWidth = 0;
+    for (auto& seg : segments) {
+        Menu* m = seg.second ? keyFont : normal;
+        totalWidth += m->GetTextWidth(seg.first, scale);
+    }
+    float cx = baseX - totalWidth / 2.0f;
+    for (auto& seg : segments) {
+        Menu* m = seg.second ? keyFont : normal;
+        float w = m->GetTextWidth(seg.first, scale);
+        m->RenderText(seg.first, cx + w / 2.0f, y, scale, color, fbWidth, fbHeight);
+        cx += w;
+    }
+}
+
 void Game::Render() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -531,7 +553,14 @@ void Game::Render() {
 
        // Eliminamos el "- 50.0f" para que use el centro geométrico exacto
         helpMenu->RenderImage("assets/textures/Manu/wasd.png", fbWidth / 2.0f, fbHeight / 2.0f + 200.0f, 400.0f, 400.0f, fbWidth, fbHeight);
-        helpMenu->RenderImage("assets/textures/Manu/simbol1.png", fbWidth / 2.0f, fbHeight / 2.0f - 100.0f, 200.0f, 200.0f, fbWidth, fbHeight);
+        helpMenu->RenderImage("assets/textures/Manu/simbol1.png", fbWidth / 2.0f - 500.0f, fbHeight / 2.0f - 250.0f, 500.0f, 300.0f, fbWidth, fbHeight);
+        
+        helpMenuKeys->RenderText("Sobrevive a la devastacion! Usa las teclas W, A, S, D", fbWidth / 2.0f - 150.0, fbHeight / 2.0f - 80.0f, 0.6f, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+        helpMenuKeys->RenderText("para esquivar los obstaculos a tu paso:", fbWidth / 2.0f - 150.0, fbHeight / 2.0f - 50.0f, 0.6f, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+        helpMenuKeys->RenderText("W: Saltar", fbWidth / 2.0f - 150.0, fbHeight / 2.0f - 10.0f, 0.6f, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+        helpMenuKeys->RenderText("A: Moverte a la izquierda", fbWidth / 2.0f - 150.0, fbHeight / 2.0f + 20.0f, 0.6f, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+        helpMenuKeys->RenderText("D: Moverte a la derecha", fbWidth / 2.0f - 150.0, fbHeight / 2.0f + 50.0f, 0.6f, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+        helpMenuKeys->RenderText("S: Agacharte / Bajar", fbWidth / 2.0f - 150.0, fbHeight / 2.0f + 80.0f, 0.6f, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
 
         glfwSwapBuffers(window);
         return;
