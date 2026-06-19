@@ -43,7 +43,7 @@ private:
     void RebuildCollisionCache();
 
     static constexpr float kSpawnDistance = 80.0f;
-    static constexpr float kMinSpacing = 25.0f;
+    static constexpr float kMinSpacing = 45.0f;
     static constexpr float kDespawnDistance = 10.0f;
     static constexpr float kTrainWidth = 1.20f;
     static constexpr float kTrainHeight = 1.6f;

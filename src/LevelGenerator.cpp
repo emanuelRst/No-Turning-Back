@@ -85,58 +85,48 @@ void LevelGenerator::SpawnPattern(float playerZ, float gameTime) {
     float roll = std::uniform_real_distribution<float>(0.0f, 1.0f)(rng);
     float adjusted = roll - difficulty * 0.3f;
 
-    // Spawn 3 coins in a vertical line (same lane, along Z) with ~30% probability
-    if (std::uniform_real_distribution<float>(0.0f, 1.0f)(rng) < 0.3f) {
-        int coinLane = PickLane();
-        float laneX = (coinLane - 1) * 3.0f;
-        float coinBaseZ = spawnZ + std::uniform_real_distribution<float>(2.0f, 12.0f)(rng);
-        for (int i = 0; i < 3; ++i) {
-            coins.emplace_back(glm::vec3(laneX, 0.5f, coinBaseZ + i * 1.5f));
+    if (adjusted < 0.33f) {
+        // 2 trenes laterales + overhead central + monedas
+        trains.emplace_back(0, spawnZ,
+            glm::vec3(kTrainWidth, kTrainHeight, kTrainDepth), 0.0f);
+        trains.emplace_back(2, spawnZ,
+            glm::vec3(kTrainWidth, kTrainHeight, kTrainDepth), 0.0f);
+        overheads.emplace_back(
+            glm::vec3(0.0f, kOverheadHeight, spawnZ - 10.0f),
+            glm::vec3(kOverheadSizeX, 0.5f, kOverheadSizeZ));
+        coins.emplace_back(glm::vec3(0.0f, 0.5f, spawnZ - 12.0f));
+        coins.emplace_back(glm::vec3(0.0f, 0.5f, spawnZ - 8.0f));
+    } else if (adjusted < 0.67f) {
+        // 3 overheads + rampa + 3 trenes + monedas
+        for (int lane = 0; lane < 3; lane++) {
+            overheads.emplace_back(
+                glm::vec3((lane - 1) * 3.0f, kOverheadHeight, spawnZ + 20.0f),
+                glm::vec3(kOverheadSizeX, 0.5f, kOverheadSizeZ));
         }
-    }
-
-    if (adjusted < 0.25f) {
-        // Single train on random lane
-        trains.emplace_back(PickLane(), spawnZ,
-            glm::vec3(kTrainWidth, kTrainHeight, kTrainDepth), 0.0f);
-    } else if (adjusted < 0.45f) {
-        // Two trains, different lanes
-        int lane1 = PickLane();
-        int lane2 = (lane1 + 1 + PickLane() % 2) % 3;
-        trains.emplace_back(lane1, spawnZ,
-            glm::vec3(kTrainWidth, kTrainHeight, kTrainDepth), 0.0f);
-        trains.emplace_back(lane2, spawnZ - 2.0f,
-            glm::vec3(kTrainWidth, kTrainHeight, kTrainDepth), 0.0f);
-    } else if (adjusted < 0.60f) {
-        // Overhead obstacle only
-        overheads.emplace_back(
-            glm::vec3((PickLane() - 1) * 3.0f, kOverheadHeight, spawnZ),
-            glm::vec3(kOverheadSizeX, 0.5f, kOverheadSizeZ));
-    } else if (adjusted < 0.75f) {
-        // Overhead + train below
-        int lane = PickLane();
-        float laneX = (lane - 1) * 3.0f;
-        overheads.emplace_back(
-            glm::vec3(laneX, kOverheadHeight, spawnZ),
-            glm::vec3(kOverheadSizeX, 0.5f, kOverheadSizeZ));
-        trains.emplace_back(lane, spawnZ + 3.0f,
-            glm::vec3(kTrainWidth, kTrainHeight, kTrainDepth), 0.0f);
-    } else if (adjusted < 0.88f) {
-        // Ramp train
         ramps.emplace_back(
-            glm::vec3((PickLane() - 1) * 3.0f, 0.0f, spawnZ),
+            glm::vec3(0.0f, 0.0f, spawnZ + 12.0f),
             glm::vec3(kRampWidth, kRampHeight, kRampDepth));
+        for (int lane = 0; lane < 3; lane++) {
+            trains.emplace_back(lane, spawnZ,
+                glm::vec3(kTrainWidth, kTrainHeight, kTrainDepth), 0.0f);
+        }
+        for (int i = 0; i < 3; i++) {
+            coins.emplace_back(
+                glm::vec3(0.0f, 1.7f, spawnZ + 13.0f + i * 1.5f));
+        }
     } else {
-        // Ramp + overhead combo (hard)
-        int lane = PickLane();
-        float laneX = (lane - 1) * 3.0f;
-        ramps.emplace_back(
-            glm::vec3(laneX, 0.0f, spawnZ),
-            glm::vec3(kRampWidth, kRampHeight, kRampDepth));
-        // Overhead on the ramp
+        // 2 overheads laterales + tren central + monedas
         overheads.emplace_back(
-            glm::vec3(laneX, kOverheadHeight, spawnZ - 2.0f),
+            glm::vec3(-3.0f, kOverheadHeight, spawnZ + 12.0f),
             glm::vec3(kOverheadSizeX, 0.5f, kOverheadSizeZ));
+        overheads.emplace_back(
+            glm::vec3(3.0f, kOverheadHeight, spawnZ + 12.0f),
+            glm::vec3(kOverheadSizeX, 0.5f, kOverheadSizeZ));
+        trains.emplace_back(1, spawnZ,
+            glm::vec3(kTrainWidth, kTrainHeight, kTrainDepth), 0.0f);
+        coins.emplace_back(glm::vec3(0.0f, 0.5f, spawnZ + 14.0f));
+        coins.emplace_back(glm::vec3(-3.0f, 0.5f, spawnZ + 6.0f));
+        coins.emplace_back(glm::vec3(3.0f, 0.5f, spawnZ + 6.0f));
     }
 }
 
@@ -165,13 +155,13 @@ void LevelGenerator::Cleanup(float playerZ) {
 void LevelGenerator::RebuildCollisionCache() {
     collisionCache.clear();
     collisionCache.reserve(trains.size() + overheads.size() + ramps.size());
-    for (Train& train : trains) {
-        collisionCache.push_back(&train);
+    for (RampTrain& ramp : ramps) {
+        collisionCache.push_back(&ramp);
     }
     for (ObstacleOverhead& obs : overheads) {
         collisionCache.push_back(&obs);
     }
-    for (RampTrain& ramp : ramps) {
-        collisionCache.push_back(&ramp);
+    for (Train& train : trains) {
+        collisionCache.push_back(&train);
     }
 }
