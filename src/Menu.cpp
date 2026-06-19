@@ -65,6 +65,9 @@ Menu::~Menu() {
     glDeleteProgram(backgroundShaderProgram);
     glDeleteTextures(1, &atlasTexture);
     glDeleteTextures(1, &backgroundTexture);
+    for (auto const& [path, tex] : imageTextures) {
+        glDeleteTextures(1, &tex);
+    }
 }
 
 float Menu::GetTextWidth(const std::string& text, float scale) {
@@ -92,7 +95,7 @@ void Menu::GetTextVerticalBounds(const std::string& text, float scale, float& mi
     }
 }
 
-void Menu::Init(const std::string& fontPath) {
+void Menu::Init(const std::string& fontPath, const std::string& bgPath) {
     // Compile shaders
     unsigned int vShader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vShader, 1, &textVertexShaderSource, NULL);
@@ -158,7 +161,7 @@ void Menu::Init(const std::string& fontPath) {
 
     // Load background texture
     backgroundTexture = SOIL_load_OGL_texture(
-        "assets/textures/Manu/FondoMenu.jpg",
+        bgPath.c_str(),
         SOIL_LOAD_AUTO,
         SOIL_CREATE_NEW_ID,
         SOIL_FLAG_MIPMAPS | SOIL_FLAG_TEXTURE_REPEATS
@@ -380,8 +383,20 @@ void Menu::RenderText(const std::string& text, float x, float y, float scale, gl
 }
 
 void Menu::RenderImage(const std::string& imagePath, float x, float y, float w, float h, int width, int height) {
-    // Para simplificar, asumimos que siempre es wasd.png dado el requerimiento.
-    unsigned int textureID = wasdTexture;
+    unsigned int textureID = 0;
+    if (imageTextures.find(imagePath) == imageTextures.end()) {
+        textureID = SOIL_load_OGL_texture(
+            imagePath.c_str(),
+            SOIL_LOAD_AUTO,
+            SOIL_CREATE_NEW_ID,
+            SOIL_FLAG_MIPMAPS | SOIL_FLAG_TEXTURE_REPEATS
+        );
+        imageTextures[imagePath] = textureID;
+    } else {
+        textureID = imageTextures[imagePath];
+    }
+    
+    if (textureID == 0) return;
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

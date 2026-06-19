@@ -32,7 +32,7 @@ class Menu {
 public:
     Menu();
     ~Menu();
-    void Init(const std::string& fontPath);
+    void Init(const std::string& fontPath, const std::string& bgPath);
     void SetMousePos(double x, double y);
     void Update(float deltaTime, int width, int height);
     void Render(unsigned int shaderProgram, unsigned int quadVAO, int width, int height, bool drawBackground = true);
@@ -62,9 +62,15 @@ private:
     unsigned int atlasTexture;
     unsigned int backgroundTexture;
     unsigned int wasdTexture;
+    std::map<std::string, unsigned int> imageTextures;
     unsigned int backgroundShaderProgram;
     unsigned int imageShaderProgram;
     unsigned int backgroundVAO, backgroundVBO;
+    
+    std::vector<unsigned int> backgroundFrames;
+    int currentFrame = 0;
+    float frameTimer = 0.0f;
+    float frameDuration = 0.033f; // ~30 FPS
 };
 
 #endif

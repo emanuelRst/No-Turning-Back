@@ -123,10 +123,10 @@ bool Game::Init() {
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
     
     // Inicializar menú
-    menu->Init("assets/fonts/Hippopotamus Apocalypse.otf");
-    gameOverMenu->Init("assets/fonts/Hippopotamus Apocalypse.otf");
-    pauseMenu->Init("assets/fonts/Hippopotamus Apocalypse.otf");
-    helpMenu->Init("assets/fonts/Hippopotamus Apocalypse.otf");
+    menu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Manu/FondoMenu.png");
+    gameOverMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Manu/FondoMenu.jpg");
+    pauseMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Manu/FondoMenu.jpg");
+    helpMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Manu/FondoMenu.png");
 
     // Cargar modelo del jugador
     playerModel = new Model("assets/models/soldier/Soldier.glb");
@@ -527,10 +527,11 @@ void Game::Render() {
     if (currentState == GameState::HELP) {
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
-        helpMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, false);
+        helpMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, true);
 
        // Eliminamos el "- 50.0f" para que use el centro geométrico exacto
         helpMenu->RenderImage("assets/textures/Manu/wasd.png", fbWidth / 2.0f, fbHeight / 2.0f + 200.0f, 400.0f, 400.0f, fbWidth, fbHeight);
+        helpMenu->RenderImage("assets/textures/Manu/simbol1.png", fbWidth / 2.0f, fbHeight / 2.0f - 100.0f, 200.0f, 200.0f, fbWidth, fbHeight);
 
         glfwSwapBuffers(window);
         return;
