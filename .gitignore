@@ -18,3 +18,5 @@ build/
 # Carpetas sin uso
 
 vcpkg_installed/
+
+save.json
