@@ -186,7 +186,7 @@ void Menu::Init(const std::string& fontPath, const std::string& bgPath) {
 
     // Load wasd texture
     wasdTexture = SOIL_load_OGL_texture(
-        "assets/textures/Manu/wasd.png",
+        "assets/textures/Menu/wasd.png",
         SOIL_LOAD_AUTO,
         SOIL_CREATE_NEW_ID,
         SOIL_FLAG_MIPMAPS | SOIL_FLAG_TEXTURE_REPEATS
@@ -450,6 +450,22 @@ void Menu::RenderImage(const std::string& imagePath, float x, float y, float w, 
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
     glDisable(GL_BLEND);
+}
+
+void Menu::LoadImage(const std::string& imagePath) {
+    if (imageTextures.find(imagePath) == imageTextures.end()) {
+        unsigned int textureID = SOIL_load_OGL_texture(
+            imagePath.c_str(),
+            SOIL_LOAD_AUTO,
+            SOIL_CREATE_NEW_ID,
+            SOIL_FLAG_MIPMAPS | SOIL_FLAG_TEXTURE_REPEATS
+        );
+        if (textureID != 0) {
+            imageTextures[imagePath] = textureID;
+        } else {
+            std::cerr << "Failed to load image: " << imagePath << " - " << SOIL_last_result() << std::endl;
+        }
+    }
 }
 
 bool Menu::HandleClick(double mouseX, double mouseY) {

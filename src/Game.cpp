@@ -123,13 +123,19 @@ bool Game::Init() {
     if (!window) return false;
     glfwMakeContextCurrent(window);
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+    glfwSwapInterval(1); // Enable VSync
     
     // Inicializar menú
-    menu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Manu/FondoMenu.png");
-    gameOverMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Manu/FondoMenu.jpg");
-    pauseMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Manu/FondoMenu.jpg");
-    helpMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Manu/FondoMenu.png");
-    helpMenuKeys->Init("assets/fonts/DirtyWar.otf", "assets/textures/Manu/FondoMenu.png");
+    menu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Menu/FondoMenu.png");
+    gameOverMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Menu/FondoMenu.png");
+    pauseMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Menu/FondoMenu.png");
+    helpMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Menu/FondoMenu.png");
+    helpMenuKeys->Init("assets/fonts/DirtyWar.otf", "assets/textures/Menu/FondoMenu.png");
+    
+    // Pre-cargar imágenes para evitar lag al renderizar
+    helpMenu->LoadImage("assets/textures/Menu/wasd.png");
+    helpMenu->LoadImage("assets/textures/Menu/simbol1.png");
+    menu->LoadImage("assets/textures/Menu/NO-TURNING-BACK.png");
 
     // Cargar modelo del jugador
     playerModel = new Model("assets/models/soldier/Soldier.glb");
@@ -541,6 +547,7 @@ void Game::Render() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         menu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, true);
+        menu->RenderImage("assets/textures/Menu/NO-TURNING-BACK.png", fbWidth * 0.5f, fbHeight * 0.25f, fbWidth * 0.8f, fbHeight * 0.30f, fbWidth, fbHeight);
 
         glfwSwapBuffers(window);
         return;
@@ -556,8 +563,8 @@ void Game::Render() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         helpMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, true);
-        helpMenu->RenderImage("assets/textures/Manu/wasd.png", fbWidth / 2.0f, fbHeight / 2.0f + 200.0f, 400.0f, 400.0f, fbWidth, fbHeight);
-        helpMenu->RenderImage("assets/textures/Manu/simbol1.png", fbWidth / 2.0f - 500.0f, fbHeight / 2.0f - 250.0f, 500.0f, 300.0f, fbWidth, fbHeight);
+        helpMenu->RenderImage("assets/textures/Menu/wasd.png", fbWidth / 2.0f, fbHeight / 2.0f + 200.0f, 400.0f, 400.0f, fbWidth, fbHeight);
+        helpMenu->RenderImage("assets/textures/Menu/simbol1.png", fbWidth / 2.0f - 500.0f, fbHeight / 2.0f - 250.0f, 500.0f, 300.0f, fbWidth, fbHeight);
 
         glfwSwapBuffers(window);
         return;
