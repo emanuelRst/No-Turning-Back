@@ -14,6 +14,7 @@ uniform mat4 view;
 uniform mat4 projection;
 uniform mat4 boneMatrices[100];
 uniform bool isAnimated;
+uniform mat3 normalMatrix;
 
 void main() {
     vec4 totalPosition;
@@ -28,7 +29,7 @@ void main() {
     }
     
     FragPos = vec3(model * totalPosition);
-    Normal = mat3(transpose(inverse(model))) * aNormal;
+    Normal = normalMatrix * aNormal;
     TexCoords = aTexCoords;
     gl_Position = projection * view * vec4(FragPos, 1.0);
 }

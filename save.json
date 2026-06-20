@@ -1,9 +1,9 @@
 {
-    "selectedModelIndex": 2,
-    "totalCoins": 650,
+    "selectedModelIndex": 0,
+    "totalCoins": 52,
     "unlocked": [
         true,
-        true,
-        true
+        false,
+        false
     ]
 }

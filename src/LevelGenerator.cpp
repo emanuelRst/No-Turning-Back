@@ -3,9 +3,7 @@
 #include <cmath>
 
 LevelGenerator::LevelGenerator()
-    : nextSpawnZ(0.0f)
-    , trainsSpawned(0)
-    , rng(std::random_device{}())
+    : rng(std::random_device{}())
 {}
 
 int LevelGenerator::PickLane() {
@@ -15,16 +13,18 @@ int LevelGenerator::PickLane() {
 
 void LevelGenerator::Reset(float playerZ) {
     trains.clear();
+    trains.reserve(100);
     overheads.clear();
+    overheads.reserve(50);
     ramps.clear();
+    ramps.reserve(50);
     coins.clear();
+    coins.reserve(100);
 
-    nextSpawnZ = playerZ - kSpawnDistance;
-    trainsSpawned = 0;
-
-    // Spawn initial set of patterns
-    for (int i = 0; i < 4; ++i) {
-        SpawnPattern(playerZ, 0.0f);
+    float z = playerZ - kSpawnDistance;
+    for (int i = 0; i < 2; ++i) {
+        SpawnPattern(z, 0.0f);
+        z -= kMinSpacing;
     }
 
     RebuildCollisionCache();
@@ -59,9 +59,9 @@ void LevelGenerator::Update(float deltaTime, float currentSpeed, float playerZ, 
         farthestZ = std::min(farthestZ, ramp.GetPosition().z);
     }
 
-    while (farthestZ > playerZ - kSpawnDistance - trainsSpawned * kMinSpacing) {
-        SpawnPattern(playerZ, gameTime);
-        farthestZ = playerZ - kSpawnDistance - trainsSpawned * kMinSpacing;
+    float targetZ = playerZ - kSpawnDistance - kMinSpacing;
+    if (farthestZ > targetZ) {
+        SpawnPattern(farthestZ - kMinSpacing, gameTime);
     }
 
     // Cleanup obstacles that passed behind the player
@@ -71,21 +71,11 @@ void LevelGenerator::Update(float deltaTime, float currentSpeed, float playerZ, 
     RebuildCollisionCache();
 }
 
-void LevelGenerator::SpawnPattern(float playerZ, float gameTime) {
-    float spawnZ = playerZ - kSpawnDistance - trainsSpawned * kMinSpacing;
-    trainsSpawned++;
+void LevelGenerator::SpawnPattern(float spawnZ, float gameTime) {
 
-    // Difficulty factor: 0.0 at start, approaches 1.0 over time
-    float difficulty = std::min(1.0f, gameTime / 120.0f);
-
-    // Pattern weights shift with difficulty
-    // Easy: single trains, overheads
-    // Medium: doubles, ramps
-    // Hard: combos
     float roll = std::uniform_real_distribution<float>(0.0f, 1.0f)(rng);
-    float adjusted = roll - difficulty * 0.3f;
 
-    if (adjusted < 0.33f) {
+    if (roll < 0.33f) {
         // 2 trenes laterales + overhead central + monedas
         trains.emplace_back(0, spawnZ,
             glm::vec3(kTrainWidth, kTrainHeight, kTrainDepth), 0.0f);
@@ -96,7 +86,7 @@ void LevelGenerator::SpawnPattern(float playerZ, float gameTime) {
             glm::vec3(kOverheadSizeX, 0.5f, kOverheadSizeZ));
         coins.emplace_back(glm::vec3(0.0f, 0.5f, spawnZ - 12.0f));
         coins.emplace_back(glm::vec3(0.0f, 0.5f, spawnZ - 8.0f));
-    } else if (adjusted < 0.67f) {
+    } else if (roll < 0.67f) {
         // 3 overheads + rampa + 3 trenes + monedas
         for (int lane = 0; lane < 3; lane++) {
             overheads.emplace_back(

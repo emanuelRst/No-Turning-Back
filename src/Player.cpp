@@ -266,7 +266,7 @@ Player::AnimState Player::GetAnimState() const {
         }
     }
 
-    if (dynamic_cast<RollingState*>(currentState.get())) {
+    if (currentState->GetType() == StateType::ROLLING) {
         return AnimState::Roll;
     }
     
@@ -373,7 +373,7 @@ void Player::InputS() {
 }
 
 void Player::Roll() {
-    if (!hasCrashed && isGrounded && dynamic_cast<RunningState*>(currentState.get())) {
+    if (!hasCrashed && isGrounded && currentState->GetType() == StateType::RUNNING) {
         SetState(std::make_unique<RollingState>());
     }
 }

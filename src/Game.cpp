@@ -4,6 +4,8 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <thread>
+#include <chrono>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -174,50 +176,11 @@ bool Game::Init() {
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* mode = glfwGetVideoMode(monitor);
     glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+    glfwSwapInterval(1);
     // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Se gestionará según el estado
 
     // Habilitar el test de profundidad
     glEnable(GL_DEPTH_TEST);
-
-    // Crear FBO para el fondo del menú
-    int fbWidth, fbHeight;
-    glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
-    glGenFramebuffers(1, &menuFBO);
-    glBindFramebuffer(GL_FRAMEBUFFER, menuFBO);
-    glGenTextures(1, &menuFBOTexture);
-    glBindTexture(GL_TEXTURE_2D, menuFBOTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, fbWidth, fbHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, menuFBOTexture, 0);
-    glGenRenderbuffers(1, &menuFBORBO);
-    glBindRenderbuffer(GL_RENDERBUFFER, menuFBORBO);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, fbWidth, fbHeight);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, menuFBORBO);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    menuFBOWidth = fbWidth;
-    menuFBOHeight = fbHeight;
-
-    // Quad fullscreen para blur
-    float quadVertices[] = {
-        -1.0f,  1.0f, 0.0f, 1.0f,
-        -1.0f, -1.0f, 0.0f, 0.0f,
-         1.0f, -1.0f, 1.0f, 0.0f,
-        -1.0f,  1.0f, 0.0f, 1.0f,
-         1.0f, -1.0f, 1.0f, 0.0f,
-         1.0f,  1.0f, 1.0f, 1.0f
-    };
-    glGenVertexArrays(1, &blurVAO);
-    glGenBuffers(1, &blurVBO);
-    glBindVertexArray(blurVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, blurVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
-    glBindVertexArray(0);
 
     // Compilar Shaders
     std::string vertexCode = ReadFile("assets/shaders/shader.vert");
@@ -566,6 +529,7 @@ void Game::FramebufferSizeCallback(GLFWwindow* window, int width, int height) {
 }
 
 void Game::Run() {
+    const double kTargetFrameTime = 1.0 / 60.0;
     float lastTime = glfwGetTime();
     while (!glfwWindowShouldClose(window)) {
         float currentTime = glfwGetTime();
@@ -577,13 +541,20 @@ void Game::Run() {
 
         glfwSwapBuffers(window);
         glfwPollEvents();
+
+        // Frame limiter de respaldo (si VSync falla)
+        double elapsed = glfwGetTime() - currentTime;
+        if (elapsed < kTargetFrameTime) {
+            double sleepMs = (kTargetFrameTime - elapsed) * 1000.0;
+            std::this_thread::sleep_for(std::chrono::milliseconds((int)sleepMs));
+        }
     }
 }
 
 float Game::GetCurrentSpeed() const {
     // Crecimiento lineal sin tope. La velocidad base se duplica cada
     // kSpeedRampTime segundos y sigue aumentando mientras gameTime crezca.
-    float multiplier = 1.0f + gameTime / kSpeedRampTime;
+    float multiplier = std::min(1.0f + gameTime / kSpeedRampTime, 2.5f);
     return kBaseTrainSpeed * multiplier;
 }
 
@@ -599,6 +570,10 @@ void Game::Update(float deltaTime) {
     }
 
     if (currentState == GameState::CHARACTER_SELECT) {
+        if (focusedSlot != lastFocusedSlot) {
+            charFocusStartTime = charSelectTime;
+            lastFocusedSlot = focusedSlot;
+        }
         charSelectTime += deltaTime;
         // Smooth scale for back button
         float smoothSpeed = 10.0f;
@@ -644,6 +619,7 @@ void Game::Update(float deltaTime) {
         if (currentState != GameState::GAME_OVER) {
             currentState = GameState::GAME_OVER;
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            SaveProgress();
         }
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
@@ -674,7 +650,6 @@ void Game::Update(float deltaTime) {
                 coin.Collect();
                 runCoins++;
                 totalCoins++;
-                SaveProgress();
             }
         }
     }
@@ -715,6 +690,7 @@ void Game::ResetRun() {
             glm::vec3(kGroundWidth / 2.0f + kWallThickness / 2.0f, kWallHeight, zPos),
             glm::vec3(kWallThickness, kWallHeight, kGroundSegmentLength));
     }
+    SaveProgress();
 }
 
 void Game::Render() {
@@ -764,15 +740,17 @@ void Game::Render() {
         return;
     }
 
-    RenderGameScene();
-
-    RenderHUD();
-
     if (currentState == GameState::PAUSED) {
+        RenderHUD();
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
         pauseMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight);
+        return;
     }
+
+    RenderGameScene();
+
+    RenderHUD();
 }
 
 void Game::RenderGameScene() {
@@ -789,17 +767,24 @@ void Game::RenderGameScene() {
     glm::mat4 projection = glm::perspective(glm::radians(60.0f), aspect, 0.1f, 100.0f);
 
     // --- Skybox: se renderiza primero, detrás de todo ---
-    if (skyboxModel && (currentState == GameState::PLAYING || currentState == GameState::PAUSED)) {
+    if (skyboxModel && currentState == GameState::PLAYING) {
         glDepthMask(GL_FALSE);
         glUseProgram(skyboxShaderProgram);
+
+        static struct { GLint view, projection; unsigned int lastProgram = 0; } skyUC;
+        if (skyboxShaderProgram != skyUC.lastProgram) {
+            skyUC.lastProgram = skyboxShaderProgram;
+            skyUC.view = glGetUniformLocation(skyboxShaderProgram, "view");
+            skyUC.projection = glGetUniformLocation(skyboxShaderProgram, "projection");
+        }
 
         glm::mat4 skyboxView = glm::mat4(glm::mat3(view));
         float rotationAngle = gameTime * 30.0f;
         glm::mat4 skyboxModelMat = glm::rotate(glm::mat4(1.0f), glm::radians(rotationAngle), glm::vec3(1.0f, 0.0f, 0.0f));
         skyboxModelMat = glm::scale(skyboxModelMat, glm::vec3(50.0f));
 
-        glUniformMatrix4fv(glGetUniformLocation(skyboxShaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(skyboxView));
-        glUniformMatrix4fv(glGetUniformLocation(skyboxShaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+        glUniformMatrix4fv(skyUC.view, 1, GL_FALSE, glm::value_ptr(skyboxView));
+        glUniformMatrix4fv(skyUC.projection, 1, GL_FALSE, glm::value_ptr(projection));
 
         skyboxModel->Draw(skyboxShaderProgram, skyboxModelMat, 0.0f, "", false);
 
@@ -810,7 +795,7 @@ void Game::RenderGameScene() {
     glUseProgram(shaderProgram);
 
     struct UniformCache {
-        GLint view, projection, lightPos, viewPos, lightColor, isAnimated, objectColor, model, useTexture;
+        GLint view, projection, lightPos, viewPos, lightColor, isAnimated, objectColor, model, useTexture, normalMatrix;
     };
     static UniformCache uc = {};
     static unsigned int lastProgram = 0;
@@ -825,6 +810,7 @@ void Game::RenderGameScene() {
         uc.objectColor = glGetUniformLocation(shaderProgram, "objectColor");
         uc.model = glGetUniformLocation(shaderProgram, "model");
         uc.useTexture = glGetUniformLocation(shaderProgram, "useTexture");
+        uc.normalMatrix = glGetUniformLocation(shaderProgram, "normalMatrix");
     }
 
     glUniformMatrix4fv(uc.view, 1, GL_FALSE, glm::value_ptr(view));
@@ -845,6 +831,10 @@ void Game::RenderGameScene() {
                                                glm::vec3(pos.x, translateY, pos.z));
         visualModel = glm::rotate(visualModel, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         visualModel = glm::scale(visualModel, glm::vec3(scale));
+        {
+            glm::mat3 normalM = glm::transpose(glm::inverse(glm::mat3(visualModel)));
+            glUniformMatrix3fv(uc.normalMatrix, 1, GL_FALSE, glm::value_ptr(normalM));
+        }
         if (player.IsWeakened()) {
             glUniform3f(uc.objectColor, 1.0f, 0.6f, 0.2f);
         } else {
@@ -918,6 +908,10 @@ void Game::RenderGameScene() {
         } else {
             glUniform3f(uc.objectColor, 1.0f, 1.0f, 1.0f);
         }
+        {
+            glm::mat3 normalM = glm::transpose(glm::inverse(glm::mat3(playerCube)));
+            glUniformMatrix3fv(uc.normalMatrix, 1, GL_FALSE, glm::value_ptr(normalM));
+        }
         glUniformMatrix4fv(uc.model, 1, GL_FALSE, glm::value_ptr(playerCube));
         glUniform1i(uc.useTexture, 0);
         glBindVertexArray(VAO);
@@ -929,12 +923,18 @@ void Game::RenderGameScene() {
         glUniform1i(uc.isAnimated, 0);
         glUniform3f(uc.objectColor, 1.0f, 1.0f, 1.0f);
         float coinRot = gameTime * 120.0f;
+        float cullZ = pos.z - 8.0f;
         for (Coin& coin : levelGen.GetCoins()) {
             if (coin.IsCollected()) continue;
             const glm::vec3 cp = coin.GetPosition();
+            if (cp.z < cullZ) continue;
             glm::mat4 coinMat = glm::translate(glm::mat4(1.0f), cp);
             coinMat = glm::rotate(coinMat, glm::radians(coinRot), glm::vec3(0.0f, 1.0f, 0.0f));
             coinMat = glm::scale(coinMat, glm::vec3(0.3f));
+            {
+                glm::mat3 normalM = glm::transpose(glm::inverse(glm::mat3(coinMat)));
+                glUniformMatrix3fv(uc.normalMatrix, 1, GL_FALSE, glm::value_ptr(normalM));
+            }
             coinModel->Draw(shaderProgram, coinMat, 0.0f, "", false);
         }
     }
@@ -949,24 +949,30 @@ void Game::RenderGameScene() {
         const glm::vec3 ts = train.GetHitboxSize();
         glm::mat4 trainModel = glm::translate(glm::mat4(1.0f), tp);
         trainModel = glm::scale(trainModel, ts * kCubeScaleFactor);
+        {
+            glm::mat3 normalM = glm::transpose(glm::inverse(glm::mat3(trainModel)));
+            glUniformMatrix3fv(uc.normalMatrix, 1, GL_FALSE, glm::value_ptr(normalM));
+        }
         glUniformMatrix4fv(uc.model, 1, GL_FALSE, glm::value_ptr(trainModel));
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }
 
     // Dibujar Obstaculos Overhead
     glUniform3f(uc.objectColor, 0.2f, 0.8f, 0.2f);
-    glUniform1i(uc.useTexture, 0);
     for (const auto& obs : levelGen.GetOverheads()) {
         const glm::vec3 op = obs.GetPosition();
         const glm::vec3 os = obs.GetHitboxSize();
         glm::mat4 obsModel = glm::translate(glm::mat4(1.0f), op);
         obsModel = glm::scale(obsModel, os * kCubeScaleFactor);
+        {
+            glm::mat3 normalM = glm::transpose(glm::inverse(glm::mat3(obsModel)));
+            glUniformMatrix3fv(uc.normalMatrix, 1, GL_FALSE, glm::value_ptr(normalM));
+        }
         glUniformMatrix4fv(uc.model, 1, GL_FALSE, glm::value_ptr(obsModel));
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }
 
         // Dibujar Rampas (Color brillante para identificar)
-        glUniform1i(uc.useTexture, 0);
         glUniform3f(uc.objectColor, 1.0f, 1.0f, 0.0f); // Neon Yellow
         for (const auto& ramp : levelGen.GetRamps()) {
             const glm::vec3 rp = ramp.GetPosition();
@@ -974,13 +980,16 @@ void Game::RenderGameScene() {
             
             glm::mat4 rampModel = glm::translate(glm::mat4(1.0f), rp);
             rampModel = glm::scale(rampModel, rs * kCubeScaleFactor);
+            {
+                glm::mat3 normalM = glm::transpose(glm::inverse(glm::mat3(rampModel)));
+                glUniformMatrix3fv(uc.normalMatrix, 1, GL_FALSE, glm::value_ptr(normalM));
+            }
             glUniformMatrix4fv(uc.model, 1, GL_FALSE, glm::value_ptr(rampModel));
             glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
         }
 
 
     glUniform3f(uc.objectColor, 0.5f, 0.5f, 0.5f);
-    glUniform1i(uc.useTexture, 0);
     glBindVertexArray(groundVAO);
     float scrollZ = groundScroll - (int)(groundScroll / kGroundSegmentLength) * kGroundSegmentLength;
     for (const auto& segment : groundSegments) {
@@ -989,13 +998,16 @@ void Game::RenderGameScene() {
         glm::mat4 segModel = glm::translate(glm::mat4(1.0f),
                                             glm::vec3(sp.x, sp.y - ss.y * 0.5f, sp.z + scrollZ));
         segModel = glm::scale(segModel, ss * kCubeScaleFactor);
+        {
+            glm::mat3 normalM = glm::transpose(glm::inverse(glm::mat3(segModel)));
+            glUniformMatrix3fv(uc.normalMatrix, 1, GL_FALSE, glm::value_ptr(normalM));
+        }
         glUniformMatrix4fv(uc.model, 1, GL_FALSE, glm::value_ptr(segModel));
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }
 
     // Dibujar Paredes laterales
     glUniform3f(uc.objectColor, 0.2f, 0.15f, 0.1f);
-    glUniform1i(uc.useTexture, 0);
     glBindVertexArray(VAO);
     for (const auto& wall : wallSegments) {
         const glm::vec3 wp = wall.GetPosition();
@@ -1003,6 +1015,10 @@ void Game::RenderGameScene() {
         glm::mat4 wallModel = glm::translate(glm::mat4(1.0f),
                                             glm::vec3(wp.x, wp.y - ws.y * 0.5f, wp.z + scrollZ));
         wallModel = glm::scale(wallModel, ws * kCubeScaleFactor);
+        {
+            glm::mat3 normalM = glm::transpose(glm::inverse(glm::mat3(wallModel)));
+            glUniformMatrix3fv(uc.normalMatrix, 1, GL_FALSE, glm::value_ptr(normalM));
+        }
         glUniformMatrix4fv(uc.model, 1, GL_FALSE, glm::value_ptr(wallModel));
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }
@@ -1022,14 +1038,31 @@ void Game::RenderCharacterSelect() {
 
     glUseProgram(shaderProgram);
 
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-    glUniform3f(glGetUniformLocation(shaderProgram, "lightPos"), 5.0f, 10.0f, 5.0f);
-    glUniform3f(glGetUniformLocation(shaderProgram, "viewPos"), 0.0f, 1.2f, 4.0f);
-    glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"), 1.0f, 1.0f, 1.0f);
-    glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 1.0f, 1.0f);
-    glUniform1i(glGetUniformLocation(shaderProgram, "isAnimated"), 1);
-    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 1);
+    struct CharSelectUC {
+        GLint view, projection, lightPos, viewPos, lightColor, objectColor, isAnimated, useTexture, normalMatrix;
+    };
+    static CharSelectUC csuc = {};
+    static unsigned int lastCSProgram = 0;
+    if (shaderProgram != lastCSProgram) {
+        lastCSProgram = shaderProgram;
+        csuc.view = glGetUniformLocation(shaderProgram, "view");
+        csuc.projection = glGetUniformLocation(shaderProgram, "projection");
+        csuc.lightPos = glGetUniformLocation(shaderProgram, "lightPos");
+        csuc.viewPos = glGetUniformLocation(shaderProgram, "viewPos");
+        csuc.lightColor = glGetUniformLocation(shaderProgram, "lightColor");
+        csuc.objectColor = glGetUniformLocation(shaderProgram, "objectColor");
+        csuc.isAnimated = glGetUniformLocation(shaderProgram, "isAnimated");
+        csuc.useTexture = glGetUniformLocation(shaderProgram, "useTexture");
+        csuc.normalMatrix = glGetUniformLocation(shaderProgram, "normalMatrix");
+    }
+
+    glUniformMatrix4fv(csuc.view, 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(csuc.projection, 1, GL_FALSE, glm::value_ptr(projection));
+    glUniform3f(csuc.lightPos, 5.0f, 10.0f, 5.0f);
+    glUniform3f(csuc.viewPos, 0.0f, 1.2f, 4.0f);
+    glUniform3f(csuc.lightColor, 1.0f, 1.0f, 1.0f);
+    glUniform3f(csuc.objectColor, 1.0f, 1.0f, 1.0f);
+    glUniform1i(csuc.useTexture, 1);
 
     int numChars = (int)characters.size();
 
@@ -1037,6 +1070,7 @@ void Game::RenderCharacterSelect() {
         if (!characters[i].model) continue;
 
         bool isFocused = (focusedSlot == i && focusedSlot < numChars);
+
         const ModelAABB& meshAABB = characters[i].model->GetMeshAABB();
         glm::vec3 size = meshAABB.max - meshAABB.min;
         float maxExtent = std::max({size.x, size.y, size.z});
@@ -1059,10 +1093,19 @@ void Game::RenderCharacterSelect() {
 
         modelMat = glm::scale(modelMat, glm::vec3(previewScale));
 
-        std::string animName = isFocused ? "Dance" : "T_Pose";
-        float animTime = isFocused ? charSelectTime : charSelectTime;
+        {
+            glm::mat3 normalM = glm::transpose(glm::inverse(glm::mat3(modelMat)));
+            glUniformMatrix3fv(csuc.normalMatrix, 1, GL_FALSE, glm::value_ptr(normalM));
+        }
 
-        characters[i].model->Draw(shaderProgram, modelMat, animTime, animName, true);
+        if (isFocused) {
+            float danceTime = charSelectTime - charFocusStartTime;
+            glUniform1i(csuc.isAnimated, 1);
+            characters[i].model->Draw(shaderProgram, modelMat, danceTime, "Dance", true);
+        } else {
+            glUniform1i(csuc.isAnimated, 0);
+            characters[i].model->Draw(shaderProgram, modelMat, 0.0f, "", false);
+        }
     }
 
     glDisable(GL_DEPTH_TEST);

@@ -30,20 +30,17 @@ private:
     std::vector<RampTrain> ramps;
     std::vector<Coin> coins;
 
-    float nextSpawnZ;
-    int trainsSpawned;
-
     std::mt19937 rng;
 
     std::vector<GameObject*> collisionCache;
 
-    void SpawnPattern(float playerZ, float gameTime);
+    void SpawnPattern(float spawnZ, float gameTime);
     void Cleanup(float playerZ);
     int PickLane();
     void RebuildCollisionCache();
 
     static constexpr float kSpawnDistance = 80.0f;
-    static constexpr float kMinSpacing = 45.0f;
+    static constexpr float kMinSpacing = 60.0f;
     static constexpr float kDespawnDistance = 10.0f;
     static constexpr float kTrainWidth = 1.20f;
     static constexpr float kTrainHeight = 1.6f;

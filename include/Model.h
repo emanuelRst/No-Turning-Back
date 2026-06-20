@@ -33,6 +33,7 @@ struct Mesh {
 };
 
 #include <map>
+#include <unordered_map>
 
 struct ModelAABB {
     glm::vec3 min{0.0f};
@@ -73,12 +74,17 @@ private:
     const aiScene* scene;
     std::vector<glm::mat4> m_BoneMatrices;
     std::map<std::string, unsigned int> animationMapping;
+    std::map<std::string, std::unordered_map<std::string, unsigned int>> animChannelCache;
 
     // Uniform location cache (evita glGetUniformLocation por cuadro)
     unsigned int lastShaderProgram = 0;
     GLint cachedModelLoc = -1;
     GLint cachedUseTextureLoc = -1;
     GLint cachedBoneLocs[100];
+
+    // Cache de uniforms de textura (se buscan 1 vez por nombre unico)
+    unsigned int lastTexUniformProgram = 0;
+    std::map<std::string, GLint> textureUniformCache;
 
     void LoadModel(const std::string& path);
     void processNode(aiNode *node, const aiScene *scene);

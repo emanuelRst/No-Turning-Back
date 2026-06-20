@@ -107,14 +107,10 @@ private:
     int focusedSlot = 0;
     int selectedModelIndex = 0;
     float charSelectTime = 0.0f;
+    float charFocusStartTime = 0.0f;
+    int lastFocusedSlot = -1;
     bool charSelectBackHovered = false;
     float charSelectBackScale = 1.0f;
-
-    unsigned int menuFBO = 0;
-    unsigned int menuFBOTexture = 0;
-    unsigned int menuFBORBO = 0;
-    int menuFBOWidth = 0, menuFBOHeight = 0;
-    unsigned int blurVAO = 0, blurVBO = 0;
 
     static Game* instance;
 public:
