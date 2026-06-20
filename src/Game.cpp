@@ -56,29 +56,29 @@ Game::Game(int w, int h)
         this->animStateStartTime = glfwGetTime();
         this->lastAnimState = Player::AnimState::Dance;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-    }, "assets/audio/Menu/MenuEfecto.wav");
+    }, "assets/audio/Menu/Voicy_Obtain.wav");
 
     // Botón 2: Change Characters (Y: 675)
     menu->AddButton("Change Characters", fixedX, 690, targetButtonWidth, targetButtonHeight, [this](){ 
         this->focusedSlot = 0;
         this->charSelectTime = 0.0f;
         this->currentState = GameState::CHARACTER_SELECT;
-    }, "assets/audio/Menu/MenuEfecto.wav");
+    }, "assets/audio/Menu/Voicy_Obtain.wav");
 
     // Botón 3: Help (Y: 730)
     menu->AddButton("Help", fixedX, 775, targetButtonWidth, targetButtonHeight, [this](){
         this->currentState = GameState::HELP;
-    }, "assets/audio/Menu/MenuEfecto.wav");
+    }, "assets/audio/Menu/Voicy_Obtain.wav");
 
     // Botón 4: Credits (Y: 785)
     menu->AddButton("Credits", fixedX, 840, targetButtonWidth, targetButtonHeight, [](){ 
         std::cout << "Credits\n"; 
-    }, "assets/audio/Menu/MenuEfecto.wav");
+    }, "assets/audio/Menu/Voicy_Obtain.wav");
 
     // Botón 5: Exit (Y: 840)
     menu->AddButton("Exit", fixedX, 900, targetButtonWidth, targetButtonHeight, [this](){
         glfwSetWindowShouldClose(this->window, true);
-    }, "assets/audio/Menu/MenuEfecto.wav");
+    }, "assets/audio/Menu/Voicy_Obtain.wav");
 
     // Configurar botones de Game Over (uno al lado del otro, más abajo)
     float gameOverY = 700.0f;
@@ -87,27 +87,27 @@ Game::Game(int w, int h)
         this->ResetRun();
         this->currentState = GameState::PLAYING;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    }, "assets/audio/Menu/MenuEfecto.wav");
+    }, "assets/audio/Menu/Voicy_Obtain.wav");
     gameOverMenu->AddButton("Back to Menu", (float)width / 2.0f + btnGap + 400.0f, gameOverY, 300, 100, [this](){
         this->currentState = GameState::MENU;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-    }, "assets/audio/Menu/MenuEfecto.wav");
+    }, "assets/audio/Menu/Voicy_Obtain.wav");
 
     // Configurar botones de Pausa
     float pauseY = (float)height / 2.0f;
     pauseMenu->AddButton("Resume", (float)width / 2.0f, pauseY - 100.0f, 300, 100, [this](){
         this->currentState = GameState::PLAYING;
         glfwSetInputMode(this->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    }, "assets/audio/Menu/MenuEfecto.wav");
+    }, "assets/audio/Menu/Voicy_Obtain.wav");
     pauseMenu->AddButton("Back to Menu", (float)width / 2.0f, pauseY + 50.0f, 300, 100, [this](){
         this->currentState = GameState::MENU;
         glfwSetInputMode(this->window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-    }, "assets/audio/Menu/MenuEfecto.wav");
+    }, "assets/audio/Menu/Voicy_Obtain.wav");
 
     // Configurar boton de Ayuda
     helpMenu->AddButton("Back", ((float)width / 2.0f) + 567.0f, (float)height + 300.0f, 300, 100, [this](){
         this->currentState = GameState::MENU;
-    }, "assets/audio/Menu/MenuEfecto.wav");
+    }, "assets/audio/Menu/Voicy_Obtain.wav");
     
     ResetRun();
 }
@@ -142,8 +142,8 @@ bool Game::Init() {
     
     // Inicializar menú
     menu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Manu/FondoMenu.png");
-    gameOverMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Manu/FondoMenu.jpg");
-    pauseMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Manu/FondoMenu.jpg");
+    gameOverMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Manu/FondoMenu.png");
+    pauseMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Manu/FondoMenu.png");
     helpMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Manu/FondoMenu.png");
     helpMenuKeys->Init("assets/fonts/DirtyWar.otf", "assets/textures/Manu/FondoMenu.png");
 

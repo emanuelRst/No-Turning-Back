@@ -246,7 +246,7 @@ void Menu::Init(const std::string& fontPath, const std::string& bgPath) {
         if (button.height == 0.0f) button.height = 64.0f; 
     }
 
-    audioManager.LoadSound("assets/audio/Menu/MenuAmbiente.wav", ambientBuffer);
+    audioManager.LoadSound("assets/audio/Menu/kiss_in_the_dark.wav", ambientBuffer);
     audioManager.LoadSound("assets/audio/Menu/Voicy_Obtain.wav", sharedHoverSoundBuffer);
 }
 
