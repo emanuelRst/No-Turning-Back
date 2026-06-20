@@ -42,13 +42,13 @@ private:
     static constexpr float kSpawnDistance = 80.0f;
     static constexpr float kMinSpacing = 60.0f;
     static constexpr float kDespawnDistance = 10.0f;
-    static constexpr float kTrainWidth = 1.20f;
+    static constexpr float kTrainWidth = 2.5f;
     static constexpr float kTrainHeight = 1.6f;
     static constexpr float kTrainDepth = 10.0f;
     static constexpr float kOverheadHeight = 1.5f;
     static constexpr float kOverheadSizeX = 2.5f;
     static constexpr float kOverheadSizeZ = 1.0f;
-    static constexpr float kRampWidth = 1.20f;
+    static constexpr float kRampWidth = 2.5f;
     static constexpr float kRampHeight = 1.6f;
     static constexpr float kRampDepth = 10.0f;
 };
