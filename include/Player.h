@@ -69,6 +69,7 @@ private:
     float weakenedTimer;
     float lateralCooldownTimer = 0.0f;
     bool hitFromLeft = false;
+    bool fastFallRequestedRoll = false;
 
     float visualScale = 0.7f;
 

@@ -115,6 +115,10 @@ void Player::UpdatePhysics(float deltaTime, const std::vector<GameObject*>& coll
             isJumping = false;
             isGrounded = true;
             isOnObject = true;
+            if (fastFallRequestedRoll) {
+                fastFallRequestedRoll = false;
+                SetState(std::make_unique<RollingState>());
+            }
             return;
         }
     }
@@ -139,6 +143,10 @@ void Player::UpdatePhysics(float deltaTime, const std::vector<GameObject*>& coll
         velocity.y = 0.0f;
         isJumping = false;
         isGrounded = true;
+        if (fastFallRequestedRoll) {
+            fastFallRequestedRoll = false;
+            SetState(std::make_unique<RollingState>());
+        }
     }
 
     // Si no aterrizo sobre el techo, una interseccion completa cuenta como choque.
@@ -361,6 +369,7 @@ void Player::MoveRight() {
 void Player::FastFall() {
     if (!hasCrashed && !isGrounded) {
         velocity.y = -15.0f;
+        fastFallRequestedRoll = true;
     }
 }
 

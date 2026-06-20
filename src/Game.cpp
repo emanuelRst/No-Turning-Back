@@ -777,6 +777,8 @@ void Game::Render() {
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
         pauseMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, false);
+        glfwSwapBuffers(window);
+        return;
     }
 
     RenderGameScene();
@@ -954,14 +956,14 @@ void Game::RenderGameScene() {
         glUniform1i(uc.isAnimated, 0);
         glUniform3f(uc.objectColor, 1.0f, 1.0f, 1.0f);
         float coinRot = gameTime * 120.0f;
-        float cullZ = pos.z - 8.0f;
+        float cullZ = pos.z - 80.0f;
         for (Coin& coin : levelGen.GetCoins()) {
             if (coin.IsCollected()) continue;
             const glm::vec3 cp = coin.GetPosition();
             if (cp.z < cullZ) continue;
             glm::mat4 coinMat = glm::translate(glm::mat4(1.0f), cp);
             coinMat = glm::rotate(coinMat, glm::radians(coinRot), glm::vec3(0.0f, 1.0f, 0.0f));
-            coinMat = glm::scale(coinMat, glm::vec3(0.3f));
+            coinMat = glm::scale(coinMat, glm::vec3(0.8f, 0.6f, 0.4f));
             {
                 glm::mat3 normalM = glm::transpose(glm::inverse(glm::mat3(coinMat)));
                 glUniformMatrix3fv(uc.normalMatrix, 1, GL_FALSE, glm::value_ptr(normalM));
@@ -1107,7 +1109,7 @@ void Game::RenderCharacterSelect() {
         float maxExtent = std::max({size.x, size.y, size.z});
         float previewScale = (maxExtent > 0.0f) ? (1.5f / maxExtent) : 1.0f;
 
-        float spacing = 2.5f;
+        float spacing = 1.8f;
         float totalWidth = (numChars - 1) * spacing;
         float startX = -totalWidth / 2.0f;
         float posX = startX + i * spacing;
@@ -1146,7 +1148,7 @@ void Game::RenderCharacterSelect() {
 
     // Render names and status below models
     for (int i = 0; i < numChars; i++) {
-        float spacing = 2.5f;
+        float spacing = 1.8f;
         float totalWidth = (numChars - 1) * spacing;
         float startX = -totalWidth / 2.0f;
         float posX = startX + i * spacing;
@@ -1188,8 +1190,8 @@ void Game::RenderHUD() {
     glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
 
     int scoreInt = (int)score;
-    menu->RenderText("Coins: " + std::to_string(runCoins), 20.0f, 20.0f, 0.6f, glm::vec3(1.0f, 0.85f, 0.2f), fbWidth, fbHeight);
-    menu->RenderText("Score: " + std::to_string(scoreInt), 20.0f, 65.0f, 0.6f, glm::vec3(1.0f, 1.0f, 1.0f), fbWidth, fbHeight);
+    menu->RenderText("Coins: " + std::to_string(runCoins), 70.0f, 20.0f, 0.6f, glm::vec3(1.0f, 0.85f, 0.2f), fbWidth, fbHeight);
+    menu->RenderText("Score: " + std::to_string(scoreInt), 70.0f, 65.0f, 0.6f, glm::vec3(1.0f, 1.0f, 1.0f), fbWidth, fbHeight);
 }
 
 void Game::SaveProgress() {
