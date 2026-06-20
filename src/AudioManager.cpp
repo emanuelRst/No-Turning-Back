@@ -89,3 +89,9 @@ void AudioManager::StopAmbient() {
         ambientSource = 0;
     }
 }
+
+void AudioManager::StopAllSources() {
+    for (ALuint s : sources) {
+        alSourceStop(s);
+    }
+}

@@ -549,18 +549,15 @@ void Game::Render() {
     if (currentState == GameState::HELP) {
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
-        helpMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, true);
 
-       // Eliminamos el "- 50.0f" para que use el centro geométrico exacto
+        // Limpiar buffer y configurar viewport para renderizado limpio
+        glViewport(0, 0, fbWidth, fbHeight);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        helpMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, true);
         helpMenu->RenderImage("assets/textures/Manu/wasd.png", fbWidth / 2.0f, fbHeight / 2.0f + 200.0f, 400.0f, 400.0f, fbWidth, fbHeight);
         helpMenu->RenderImage("assets/textures/Manu/simbol1.png", fbWidth / 2.0f - 500.0f, fbHeight / 2.0f - 250.0f, 500.0f, 300.0f, fbWidth, fbHeight);
-        
-        helpMenuKeys->RenderText("Sobrevive a la devastacion! Usa las teclas W, A, S, D", fbWidth / 2.0f - 150.0, fbHeight / 2.0f - 80.0f, 0.6f, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
-        helpMenuKeys->RenderText("para esquivar los obstaculos a tu paso:", fbWidth / 2.0f - 150.0, fbHeight / 2.0f - 50.0f, 0.6f, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
-        helpMenuKeys->RenderText("W: Saltar", fbWidth / 2.0f - 150.0, fbHeight / 2.0f - 10.0f, 0.6f, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
-        helpMenuKeys->RenderText("A: Moverte a la izquierda", fbWidth / 2.0f - 150.0, fbHeight / 2.0f + 20.0f, 0.6f, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
-        helpMenuKeys->RenderText("D: Moverte a la derecha", fbWidth / 2.0f - 150.0, fbHeight / 2.0f + 50.0f, 0.6f, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
-        helpMenuKeys->RenderText("S: Agacharte / Bajar", fbWidth / 2.0f - 150.0, fbHeight / 2.0f + 80.0f, 0.6f, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
 
         glfwSwapBuffers(window);
         return;

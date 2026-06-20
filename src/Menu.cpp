@@ -57,6 +57,20 @@ std::string ReadShaderFile(const std::string& path) {
 Menu::Menu() {}
 
 Menu::~Menu() {
+    // Detener todo el audio antes de borrar buffers
+    audioManager.StopAmbient();
+    audioManager.StopAllSources();
+
+    // Borrar buffers de sonido
+    if (ambientBuffer != 0) alDeleteBuffers(1, &ambientBuffer);
+    if (sharedHoverSoundBuffer != 0) alDeleteBuffers(1, &sharedHoverSoundBuffer);
+    for (auto& button : buttons) {
+        if (button.hoverSoundBuffer != 0) {
+            alDeleteBuffers(1, &button.hoverSoundBuffer);
+        }
+    }
+
+    // Limpieza OpenGL
     glDeleteVertexArrays(1, &textVAO);
     glDeleteBuffers(1, &textVBO);
     glDeleteVertexArrays(1, &backgroundVAO);
@@ -67,9 +81,6 @@ Menu::~Menu() {
     glDeleteTextures(1, &backgroundTexture);
     for (auto const& [path, tex] : imageTextures) {
         glDeleteTextures(1, &tex);
-    }
-    if (sharedHoverSoundBuffer != 0) {
-        alDeleteBuffers(1, &sharedHoverSoundBuffer);
     }
 }
 
@@ -239,7 +250,7 @@ void Menu::Init(const std::string& fontPath, const std::string& bgPath) {
         if (button.height == 0.0f) button.height = 64.0f; 
     }
 
-    audioManager.LoadSound("assets/audio/Menu/MenuAmbiente.wav", ambientBuffer);
+    audioManager.LoadSound("assets/audio/Menu/kiss_in_the_dark.wav", ambientBuffer);
     audioManager.LoadSound("assets/audio/Menu/Voicy_Obtain.wav", sharedHoverSoundBuffer);
 }
 
