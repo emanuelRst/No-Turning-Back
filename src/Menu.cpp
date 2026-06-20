@@ -111,6 +111,10 @@ void Menu::Init(const std::string& fontPath, const std::string& bgPath) {
     glAttachShader(textShaderProgram, fShader);
     glLinkProgram(textShaderProgram);
 
+    menuUC.textColor = glGetUniformLocation(textShaderProgram, "textColor");
+    menuUC.text = glGetUniformLocation(textShaderProgram, "text");
+    menuUC.projection = glGetUniformLocation(textShaderProgram, "projection");
+
     // Load and compile background shader
     std::string vSource = ReadShaderFile("assets/shaders/background.vert");
     std::string fSource = ReadShaderFile("assets/shaders/background.frag");
@@ -127,6 +131,9 @@ void Menu::Init(const std::string& fontPath, const std::string& bgPath) {
     glAttachShader(backgroundShaderProgram, vShaderBg);
     glAttachShader(backgroundShaderProgram, fShaderBg);
     glLinkProgram(backgroundShaderProgram);
+
+    menuUC.image = glGetUniformLocation(backgroundShaderProgram, "image");
+    menuUCInitialized = true;
 
     // Setup background VAO/VBO
     float quadVertices[] = {
@@ -308,7 +315,7 @@ void Menu::Render(unsigned int shaderProgram, unsigned int quadVAO, int width, i
     // Draw background
     if (drawBackground) {
         glUseProgram(backgroundShaderProgram);
-        glUniform1i(glGetUniformLocation(backgroundShaderProgram, "image"), 0);
+        glUniform1i(menuUC.image, 0);
         glUniform1f(glGetUniformLocation(backgroundShaderProgram, "u_time"), time);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, backgroundTexture);
@@ -334,11 +341,11 @@ void Menu::RenderText(const std::string& text, float x, float y, float scale, gl
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
     glUseProgram(textShaderProgram);
-    glUniform3f(glGetUniformLocation(textShaderProgram, "textColor"), color.x, color.y, color.z);
-    glUniform1i(glGetUniformLocation(textShaderProgram, "text"), 0); // Set sampler to texture unit 0
+    glUniform3f(menuUC.textColor, color.x, color.y, color.z);
+    glUniform1i(menuUC.text, 0);
     
     glm::mat4 projection = glm::ortho(0.0f, (float)width, (float)height, 0.0f);
-    glUniformMatrix4fv(glGetUniformLocation(textShaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+    glUniformMatrix4fv(menuUC.projection, 1, GL_FALSE, glm::value_ptr(projection));
     
     glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(textVAO);
@@ -409,7 +416,7 @@ void Menu::RenderImage(const std::string& imagePath, float x, float y, float w, 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
     glUseProgram(imageShaderProgram);
-    glUniform1i(glGetUniformLocation(imageShaderProgram, "image"), 0);
+    glUniform1i(menuUC.image, 0);
     
     glm::mat4 projection = glm::ortho(0.0f, (float)width, (float)height, 0.0f);
     glUniformMatrix4fv(glGetUniformLocation(imageShaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));

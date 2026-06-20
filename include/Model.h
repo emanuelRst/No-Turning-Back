@@ -33,6 +33,7 @@ struct Mesh {
 };
 
 #include <map>
+#include <unordered_map>
 
 struct ModelAABB {
     glm::vec3 min{0.0f};
@@ -44,7 +45,10 @@ public:
     Model(const std::string& path);
     ~Model();
 
-    void Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float animationTime, unsigned int animIndex = 0);
+    float GetAnimationDurationInSeconds(const std::string& animName) const;
+    void Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float animationTime, const std::string& animName = "", bool loop = true,
+              float blendFactor = 0.0f, const std::string& prevAnimName = "", float prevAnimTime = 0.0f, bool prevAnimLoop = true);
+    int GetAnimationIndex(const std::string& name) const;
 
     // AABB en espacio del asset (con transforms de nodos). Sirve para escenas estáticas.
     ModelAABB GetAABB() const { return modelAABB; }
@@ -69,6 +73,18 @@ private:
     Assimp::Importer importer;
     const aiScene* scene;
     std::vector<glm::mat4> m_BoneMatrices;
+    std::map<std::string, unsigned int> animationMapping;
+    std::map<std::string, std::unordered_map<std::string, unsigned int>> animChannelCache;
+
+    // Uniform location cache (evita glGetUniformLocation por cuadro)
+    unsigned int lastShaderProgram = 0;
+    GLint cachedModelLoc = -1;
+    GLint cachedUseTextureLoc = -1;
+    GLint cachedBoneLocs[100];
+
+    // Cache de uniforms de textura (se buscan 1 vez por nombre unico)
+    unsigned int lastTexUniformProgram = 0;
+    std::map<std::string, GLint> textureUniformCache;
 
     void LoadModel(const std::string& path);
     void processNode(aiNode *node, const aiScene *scene);

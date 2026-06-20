@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <limits>
 #include <vector>
+#include <iostream>
 
 namespace {
 constexpr float kLaneWidth = 3.0f;
@@ -28,6 +29,7 @@ Player::Player()
       hasCrashed(false),
       isWeakened(false),
       weakenedTimer(0.0f),
+      lateralCooldownTimer(0.0f),
       previousLane(1),
       currentState(std::make_unique<RunningState>()) {
     Reset();
@@ -62,6 +64,11 @@ void Player::Update(float deltaTime, const std::vector<GameObject*>& collisionOb
             isWeakened = false;
             weakenedTimer = 0.0f;
         }
+    }
+
+    // Actualizar timer de invulnerabilidad post-choque lateral
+    if (lateralCooldownTimer > 0.0f) {
+        lateralCooldownTimer -= deltaTime;
     }
 
     UpdateLaneMovement(deltaTime);
@@ -137,8 +144,14 @@ void Player::UpdatePhysics(float deltaTime, const std::vector<GameObject*>& coll
     // Si no aterrizo sobre el techo, una interseccion completa cuenta como choque.
     const GameObject* blocker = FindBlockingObject(collisionObjects);
     if (blocker != nullptr) {
+        // Ignorar colisiones durante el breve periodo de invulnerabilidad post-choque lateral
+        if (lateralCooldownTimer > 0.0f) {
+            return;
+        }
+
         // Verificar si es una rampa
-        if (auto ramp = dynamic_cast<const RampTrain*>(blocker)) {
+        if (blocker->IsRamp()) {
+            auto ramp = static_cast<const RampTrain*>(blocker);
             // Ajustar posición Y basada en la rampa
             float newY = ramp->GetHeightAt(position.z);
             // Solo ajustar si la rampa es mas alta que la posicion actual
@@ -151,19 +164,35 @@ void Player::UpdatePhysics(float deltaTime, const std::vector<GameObject*>& coll
             return;
         }
 
-        if (isWeakened) {
-            // Segundo golpe mientras debilitado: muerte
+        Bounds blockerBounds = blocker->GetBounds();
+        float playerHalfW = GetHitboxSize().x * 0.5f;
+        float overlapLeft = std::max(position.x - playerHalfW, blockerBounds.min.x);
+        float overlapRight = std::min(position.x + playerHalfW, blockerBounds.max.x);
+        float overlapX = std::max(0.0f, overlapRight - overlapLeft);
+        bool isFrontal = overlapX > playerHalfW;
+
+        if (isFrontal) {
+            hasCrashed = true;
+            velocity = glm::vec3(0.0f);
+            isJumping = false;
+            isGrounded = true;
+            isOnObject = false;
+        } else if (isWeakened) {
+            // Segundo golpe lateral mientras debilitado: muerte
             hasCrashed = true;
             velocity = glm::vec3(0.0f);
             isJumping = false;
             isGrounded = true;
             isOnObject = false;
         } else {
-            // Primer golpe: entra en estado debilitado y vuelve al carril anterior
+            // Primer golpe lateral: entra en estado debilitado y vuelve al carril anterior
+            hitFromLeft = position.x < blocker->GetPosition().x;
             currentLane = previousLane;
             targetX = LaneX(currentLane);
+            position.x = targetX; // Snap inmediato para salir de la zona de colisión
             isWeakened = true;
             weakenedTimer = 5.0f;
+            lateralCooldownTimer = 0.5f;
         }
     }
 }
@@ -228,7 +257,19 @@ const GameObject* Player::FindBlockingObject(const std::vector<GameObject*>& col
 
 Player::AnimState Player::GetAnimState() const {
     if (hasCrashed) return AnimState::Die;
-    if (isWeakened) return AnimState::Hit;
+    
+    if (isWeakened) {
+        float timeSinceHit = 5.0f - weakenedTimer;
+        float hitDuration = 0.5f;
+        if (timeSinceHit < hitDuration) {
+            return AnimState::Hit;
+        }
+    }
+
+    if (currentState->GetType() == StateType::ROLLING) {
+        return AnimState::Roll;
+    }
+    
     if (!isGrounded) {
         return (velocity.y > 0.0f) ? AnimState::Jump : AnimState::Fall;
     }
@@ -286,6 +327,8 @@ void Player::Reset() {
     hasCrashed = false;
     isWeakened = false;
     weakenedTimer = 0.0f;
+    lateralCooldownTimer = 0.0f;
+    hitFromLeft = false;
     previousLane = 1;
 }
 
@@ -330,7 +373,7 @@ void Player::InputS() {
 }
 
 void Player::Roll() {
-    if (!hasCrashed && isGrounded && dynamic_cast<RunningState*>(currentState.get())) {
+    if (!hasCrashed && isGrounded && currentState->GetType() == StateType::RUNNING) {
         SetState(std::make_unique<RollingState>());
     }
 }

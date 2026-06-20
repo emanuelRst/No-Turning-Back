@@ -30,6 +30,7 @@ public:
 
     // Update es virtual para que cada tipo de objeto defina su propio movimiento.
     virtual void Update(float deltaTime);
+    virtual bool IsRamp() const { return false; }
 
     // Transform basico del objeto en el mundo.
     const glm::vec3& GetPosition() const { return position; }
