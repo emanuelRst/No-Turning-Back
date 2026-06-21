@@ -109,8 +109,15 @@ void Player::UpdatePhysics(float deltaTime, const std::vector<GameObject*>& coll
         const float objectTop = support->GetBounds().max.y;
         const float playerBottom = GetBounds().min.y;
 
-        if (previousBottom >= objectTop && playerBottom <= objectTop) {
-            Move(glm::vec3(0.0f, objectTop - playerBottom, 0.0f));
+        // Si el objeto es una rampa, usar su altura interpolada en vez del techo del AABB
+        float landingHeight = objectTop;
+        if (support->IsRamp()) {
+            auto ramp = static_cast<const RampTrain*>(support);
+            landingHeight = ramp->GetHeightAt(position.z);
+        }
+
+        if (previousBottom >= landingHeight && playerBottom <= landingHeight) {
+            Move(glm::vec3(0.0f, landingHeight - playerBottom, 0.0f));
             velocity.y = 0.0f;
             isJumping = false;
             isGrounded = true;
@@ -125,12 +132,16 @@ void Player::UpdatePhysics(float deltaTime, const std::vector<GameObject*>& coll
 
     // Si ya estaba apoyado, se mantiene pegado al techo mientras siga el solape X/Z.
     if (isGrounded && support != nullptr) {
-        const float objectTop = support->GetBounds().max.y;
+        float targetHeight = support->GetBounds().max.y;
+        if (support->IsRamp()) {
+            auto ramp = static_cast<const RampTrain*>(support);
+            targetHeight = ramp->GetHeightAt(position.z);
+        }
         const float playerBottom = GetBounds().min.y;
         const float snapTolerance = 0.05f;
 
-        if (playerBottom >= objectTop - snapTolerance && playerBottom <= objectTop + snapTolerance) {
-            Move(glm::vec3(0.0f, objectTop - playerBottom, 0.0f));
+        if (playerBottom >= targetHeight - snapTolerance && playerBottom <= targetHeight + snapTolerance) {
+            Move(glm::vec3(0.0f, targetHeight - playerBottom, 0.0f));
             isOnObject = true;
             return;
         }

@@ -24,8 +24,8 @@ public:
 
     const std::vector<GameObject*>& GetCollisionObjects() { return collisionCache; }
 
-    static constexpr float kSpawnDistance = 80.0f;
-    static constexpr float kMinSpacing = 60.0f;
+    static constexpr float kSpawnDistance = 60.0f;
+    static constexpr float kMinSpacing = 50.0f;
     static constexpr float kDespawnDistance = 10.0f;
     static constexpr float kTrainWidth = 2.5f;
     static constexpr float kTrainHeight = 2.5f;
@@ -44,6 +44,7 @@ private:
     std::vector<Coin> coins;
 
     std::mt19937 rng;
+    int lastSections[2] = {-1, -1};
 
     std::vector<GameObject*> collisionCache;
 

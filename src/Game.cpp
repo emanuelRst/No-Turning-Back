@@ -1,5 +1,6 @@
 #include "Game.h"
 #include "Menu.h"
+#include <SOIL2/SOIL2.h>
 #include <algorithm>
 #include <iostream>
 #include <fstream>
@@ -32,7 +33,7 @@ constexpr float kBaseTrainSpeed = 20.0f;
 constexpr float kSpeedRampTime = 300.0f;
 constexpr float kGroundSegmentLength = 20.0f;
 constexpr int kNumGroundSegments = 5;
-constexpr float kWallHeight = 5.0f;
+constexpr float kWallHeight = 8.0f;
 constexpr float kWallThickness = 0.6f;
 }
 
@@ -323,10 +324,10 @@ bool Game::Init() {
         -0.1f,  0.1f, -0.1f,  0.0f,  0.0f, -1.0f,   0.0f, 1.0f,
          0.1f,  0.1f, -0.1f,  0.0f,  0.0f, -1.0f,   1.0f, 1.0f,
          0.1f, -0.1f, -0.1f,  0.0f,  0.0f, -1.0f,   1.0f, 0.0f,
-        -0.1f,  0.1f, -0.1f,  0.0f,  1.0f,  0.0f,   0.0f, 0.0f,
-        -0.1f,  0.1f,  0.1f,  0.0f,  1.0f,  0.0f,   0.0f, 1.0f,
-         0.1f,  0.1f,  0.1f,  0.0f,  1.0f,  0.0f,   1.0f, 1.0f,
-         0.1f,  0.1f, -0.1f,  0.0f,  1.0f,  0.0f,   1.0f, 0.0f,
+        -0.1f,  0.1f, -0.1f,  0.0f,  1.0f,  0.0f,   0.0f,  0.0f,
+        -0.1f,  0.1f,  0.1f,  0.0f,  1.0f,  0.0f,   10.0f, 0.0f,
+         0.1f,  0.1f,  0.1f,  0.0f,  1.0f,  0.0f,   10.0f, 1.0f,
+         0.1f,  0.1f, -0.1f,  0.0f,  1.0f,  0.0f,   0.0f,  1.0f,
         -0.1f, -0.1f, -0.1f,  0.0f, -1.0f,  0.0f,   0.0f, 0.0f,
          0.1f, -0.1f, -0.1f,  0.0f, -1.0f,  0.0f,   1.0f, 0.0f,
          0.1f, -0.1f,  0.1f,  0.0f, -1.0f,  0.0f,   1.0f, 1.0f,
@@ -359,8 +360,29 @@ bool Game::Init() {
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
     glEnableVertexAttribArray(2);
 
+    groundTexture = SOIL_load_OGL_texture(
+        "assets/textures/Street/street.jpg",
+        SOIL_LOAD_AUTO,
+        SOIL_CREATE_NEW_ID,
+        SOIL_FLAG_MIPMAPS | SOIL_FLAG_TEXTURE_REPEATS
+    );
 
-    
+    {
+        const char* wallPaths[3] = {
+            "assets/textures/City/Building1.png",
+            "assets/textures/City/Building2.png",
+            "assets/textures/City/Building3.png"
+        };
+        for (int w = 0; w < 3; ++w) {
+            wallTextures[w] = SOIL_load_OGL_texture(
+                wallPaths[w],
+                SOIL_LOAD_AUTO,
+                SOIL_CREATE_NEW_ID,
+                SOIL_FLAG_MIPMAPS | SOIL_FLAG_TEXTURE_REPEATS
+            );
+        }
+    }
+
     return true;
 }
 
@@ -701,15 +723,19 @@ void Game::ResetRun() {
         groundSegments.emplace_back(glm::vec3(0.0f, 0.0f, zPos), glm::vec3(kGroundWidth, 0.1f, kGroundSegmentLength));
     }
 
-    wallSegments.clear();
+    for (int w = 0; w < 3; ++w) wallSegments[w].clear();
+    float segLen = kGroundSegmentLength / 3.0f;
     for (int i = 0; i < kNumGroundSegments; ++i) {
         float zPos = playerZ - (i * kGroundSegmentLength);
-        wallSegments.emplace_back(
-            glm::vec3(-kGroundWidth / 2.0f - kWallThickness / 2.0f, kWallHeight, zPos),
-            glm::vec3(kWallThickness, kWallHeight, kGroundSegmentLength));
-        wallSegments.emplace_back(
-            glm::vec3(kGroundWidth / 2.0f + kWallThickness / 2.0f, kWallHeight, zPos),
-            glm::vec3(kWallThickness, kWallHeight, kGroundSegmentLength));
+        for (int s = 0; s < 3; ++s) {
+            float segZ = zPos + (s - 1) * segLen;
+            wallSegments[s].emplace_back(
+                glm::vec3(-kGroundWidth / 2.0f - kWallThickness / 2.0f, kWallHeight, segZ),
+                glm::vec3(kWallThickness, kWallHeight, segLen));
+            wallSegments[s].emplace_back(
+                glm::vec3(kGroundWidth / 2.0f + kWallThickness / 2.0f, kWallHeight, segZ),
+                glm::vec3(kWallThickness, kWallHeight, segLen));
+        }
     }
     SaveProgress();
 }
@@ -1063,8 +1089,9 @@ void Game::RenderGameScene() {
     }
 
 
-    glUniform1i(uc.useTexture, 0);
-    glUniform3f(uc.objectColor, 0.5f, 0.5f, 0.5f);
+    glUniform1i(uc.useTexture, 1);
+    glBindTexture(GL_TEXTURE_2D, groundTexture);
+    glUniform3f(uc.objectColor, 1.0f, 1.0f, 1.0f);
     glBindVertexArray(groundVAO);
     float scrollZ = groundScroll - (int)(groundScroll / kGroundSegmentLength) * kGroundSegmentLength;
     for (const auto& segment : groundSegments) {
@@ -1082,21 +1109,24 @@ void Game::RenderGameScene() {
     }
 
     // Dibujar Paredes laterales
-    glUniform1i(uc.useTexture, 0);
-    glUniform3f(uc.objectColor, 0.2f, 0.15f, 0.1f);
-    glBindVertexArray(VAO);
-    for (const auto& wall : wallSegments) {
-        const glm::vec3 wp = wall.GetPosition();
-        const glm::vec3 ws = wall.GetHitboxSize();
-        glm::mat4 wallModel = glm::translate(glm::mat4(1.0f),
-                                            glm::vec3(wp.x, wp.y - ws.y * 0.5f, wp.z + scrollZ));
-        wallModel = glm::scale(wallModel, ws * kCubeScaleFactor);
-        {
-            glm::mat3 normalM = glm::transpose(glm::inverse(glm::mat3(wallModel)));
-            glUniformMatrix3fv(uc.normalMatrix, 1, GL_FALSE, glm::value_ptr(normalM));
+    glUniform1i(uc.useTexture, 1);
+    glUniform3f(uc.objectColor, 1.0f, 1.0f, 1.0f);
+    glBindVertexArray(groundVAO);
+    for (int w = 0; w < 3; ++w) {
+        glBindTexture(GL_TEXTURE_2D, wallTextures[w]);
+        for (const auto& wall : wallSegments[w]) {
+            const glm::vec3 wp = wall.GetPosition();
+            const glm::vec3 ws = wall.GetHitboxSize();
+            glm::mat4 wallModel = glm::translate(glm::mat4(1.0f),
+                                                glm::vec3(wp.x, wp.y - ws.y * 0.5f, wp.z + scrollZ));
+            wallModel = glm::scale(wallModel, ws * kCubeScaleFactor);
+            {
+                glm::mat3 normalM = glm::transpose(glm::inverse(glm::mat3(wallModel)));
+                glUniformMatrix3fv(uc.normalMatrix, 1, GL_FALSE, glm::value_ptr(normalM));
+            }
+            glUniformMatrix4fv(uc.model, 1, GL_FALSE, glm::value_ptr(wallModel));
+            glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
         }
-        glUniformMatrix4fv(uc.model, 1, GL_FALSE, glm::value_ptr(wallModel));
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }
 }
 

@@ -21,6 +21,9 @@ void LevelGenerator::Reset(float playerZ) {
     coins.clear();
     coins.reserve(100);
 
+    lastSections[0] = -1;
+    lastSections[1] = -1;
+
     float z = playerZ - kSpawnDistance;
     for (int i = 0; i < 2; ++i) {
         SpawnPattern(z, 0.0f);
@@ -73,9 +76,21 @@ void LevelGenerator::Update(float deltaTime, float currentSpeed, float playerZ, 
 
 void LevelGenerator::SpawnPattern(float spawnZ, float gameTime) {
 
-    float roll = std::uniform_real_distribution<float>(0.0f, 1.0f)(rng);
+    int available[5];
+    int count = 0;
+    for (int s = 0; s < 5; ++s) {
+        if (s != lastSections[0] && s != lastSections[1]) {
+            available[count++] = s;
+        }
+    }
 
-    if (roll < 0.20f) {
+    int chosen = available[std::uniform_int_distribution<int>(0, count - 1)(rng)];
+
+    lastSections[1] = lastSections[0];
+    lastSections[0] = chosen;
+
+    switch (chosen) {
+    case 0: {
         // Seccion 1: 2 trenes laterales + overhead central + monedas
         trains.emplace_back(0, spawnZ,
             glm::vec3(kTrainWidth, kTrainHeight, kTrainDepth), 0.0f);
@@ -86,7 +101,9 @@ void LevelGenerator::SpawnPattern(float spawnZ, float gameTime) {
             glm::vec3(kOverheadSizeX, 0.5f, kOverheadSizeZ));
         coins.emplace_back(glm::vec3(0.0f, 0.5f, spawnZ - 12.0f));
         coins.emplace_back(glm::vec3(0.0f, 0.5f, spawnZ - 8.0f));
-    } else if (roll < 0.40f) {
+        break;
+    }
+    case 1: {
         // Seccion 2: 3 overheads + rampa + 3 trenes + monedas
         for (int lane = 0; lane < 3; lane++) {
             overheads.emplace_back(
@@ -104,7 +121,9 @@ void LevelGenerator::SpawnPattern(float spawnZ, float gameTime) {
             coins.emplace_back(
                 glm::vec3(0.0f, 2.8f, spawnZ - 3.0f + i * 3.0f));
         }
-    } else if (roll < 0.60f) {
+        break;
+    }
+    case 2: {
         // Seccion 3: 2 overheads laterales + tren central + monedas
         overheads.emplace_back(
             glm::vec3(-3.0f, kOverheadHeight, spawnZ + 12.0f),
@@ -117,7 +136,9 @@ void LevelGenerator::SpawnPattern(float spawnZ, float gameTime) {
         coins.emplace_back(glm::vec3(0.0f, 0.5f, spawnZ + 14.0f));
         coins.emplace_back(glm::vec3(-3.0f, 0.5f, spawnZ + 6.0f));
         coins.emplace_back(glm::vec3(3.0f, 0.5f, spawnZ + 6.0f));
-    } else if (roll < 0.80f) {
+        break;
+    }
+    case 3: {
         // Seccion 4: rampa al frente, trenes anchos medio, overheads justo antes, monedas
         ramps.emplace_back(
             glm::vec3(0.0f, 0.0f, spawnZ + 15.0f),
@@ -138,7 +159,9 @@ void LevelGenerator::SpawnPattern(float spawnZ, float gameTime) {
             coins.emplace_back(
                 glm::vec3(3.0f, 2.8f, spawnZ + 3.0f + i * 1.5f));
         }
-    } else {
+        break;
+    }
+    default: {
         // Seccion 5: trenes izq encadenados + rampa, overhead+monedas centro, tren+monedas der
         trains.emplace_back(0, spawnZ,
             glm::vec3(kTrainWidth, kTrainHeight, kTrainDepth), 0.0f);
@@ -166,6 +189,8 @@ void LevelGenerator::SpawnPattern(float spawnZ, float gameTime) {
             coins.emplace_back(
                 glm::vec3(3.0f, 2.8f, spawnZ - 12.0f + i * 2.0f));
         }
+        break;
+    }
     }
 }
 

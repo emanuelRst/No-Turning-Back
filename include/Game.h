@@ -73,7 +73,7 @@ private:
     Model* skyboxModel;
     LevelGenerator levelGen;
     std::vector<GroundSegment> groundSegments;
-    std::vector<GroundSegment> wallSegments;
+    std::vector<GroundSegment> wallSegments[3];
 
     float gameTime;
     float groundScroll;
@@ -97,6 +97,7 @@ private:
     // Instancia estática para acceder desde el callback
     unsigned int groundVAO, groundVBO, groundEBO;
     unsigned int groundTexture;
+    unsigned int wallTextures[3];
 
     Model* coinModel;
     Model* trainObstacleModel;
