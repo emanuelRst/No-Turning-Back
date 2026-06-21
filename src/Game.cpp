@@ -787,6 +787,14 @@ void Game::Render() {
         menu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, true);
         menu->RenderImage("assets/textures/Menu/NO-TURNING-BACK.png", fbWidth * 0.5f, fbHeight * 0.25f, fbWidth * 0.8f, fbHeight * 0.30f, fbWidth, fbHeight);
 
+        {
+            float handX = menu->GetSelectedButtonX();
+            float handY = menu->GetSelectedButtonY();
+            if (handX > 0) {
+                menu->RenderImage("assets/textures/Menu/Hand.png", handX + 280.0f, handY, 60.0f, 60.0f, fbWidth, fbHeight);
+            }
+        }
+
         glfwSwapBuffers(window);
         return;
     }
@@ -803,6 +811,7 @@ void Game::Render() {
         helpMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, true);
         helpMenu->RenderImage("assets/textures/Menu/wasd.png", fbWidth / 2.0f, fbHeight / 2.0f + 200.0f, 400.0f, 400.0f, fbWidth, fbHeight);
         helpMenu->RenderImage("assets/textures/Menu/simbol1.png", fbWidth / 2.0f - 500.0f, fbHeight / 2.0f - 250.0f, 500.0f, 300.0f, fbWidth, fbHeight);
+        helpMenu->RenderImage("assets/textures/Menu/Hand.png", fbWidth * 0.75f, fbHeight / 2.0f, 500.0f, 500.0f, fbWidth, fbHeight);
 
         glfwSwapBuffers(window);
         return;

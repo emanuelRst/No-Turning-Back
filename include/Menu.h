@@ -50,6 +50,8 @@ public:
     void PlaySound(ALuint buffer);
     ALuint GetHoverSoundBuffer() const { return sharedHoverSoundBuffer; }
     void SetAudioManager(AudioManager* am);
+    float GetSelectedButtonX() const { return (selectedButtonIndex >= 0 && selectedButtonIndex < (int)buttons.size()) ? buttons[selectedButtonIndex].x : -1.0f; }
+    float GetSelectedButtonY() const { return (selectedButtonIndex >= 0 && selectedButtonIndex < (int)buttons.size()) ? buttons[selectedButtonIndex].y : -1.0f; }
 
 private:
     std::vector<Button> buttons;
