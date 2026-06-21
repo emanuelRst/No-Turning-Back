@@ -57,6 +57,20 @@ std::string ReadShaderFile(const std::string& path) {
 Menu::Menu() {}
 
 Menu::~Menu() {
+    // Detener todo el audio antes de borrar buffers
+    audioManager.StopAmbient();
+    audioManager.StopAllSources();
+
+    // Borrar buffers de sonido
+    if (ambientBuffer != 0) alDeleteBuffers(1, &ambientBuffer);
+    if (sharedHoverSoundBuffer != 0) alDeleteBuffers(1, &sharedHoverSoundBuffer);
+    for (auto& button : buttons) {
+        if (button.hoverSoundBuffer != 0) {
+            alDeleteBuffers(1, &button.hoverSoundBuffer);
+        }
+    }
+
+    // Limpieza OpenGL
     glDeleteVertexArrays(1, &textVAO);
     glDeleteBuffers(1, &textVBO);
     glDeleteVertexArrays(1, &backgroundVAO);
@@ -67,9 +81,6 @@ Menu::~Menu() {
     glDeleteTextures(1, &backgroundTexture);
     for (auto const& [path, tex] : imageTextures) {
         glDeleteTextures(1, &tex);
-    }
-    if (sharedHoverSoundBuffer != 0) {
-        alDeleteBuffers(1, &sharedHoverSoundBuffer);
     }
 }
 
@@ -182,7 +193,7 @@ void Menu::Init(const std::string& fontPath, const std::string& bgPath) {
 
     // Load wasd texture
     wasdTexture = SOIL_load_OGL_texture(
-        "assets/textures/Manu/wasd.png",
+        "assets/textures/Menu/wasd.png",
         SOIL_LOAD_AUTO,
         SOIL_CREATE_NEW_ID,
         SOIL_FLAG_MIPMAPS | SOIL_FLAG_TEXTURE_REPEATS
@@ -246,7 +257,7 @@ void Menu::Init(const std::string& fontPath, const std::string& bgPath) {
         if (button.height == 0.0f) button.height = 64.0f; 
     }
 
-    audioManager.LoadSound("assets/audio/Menu/kiss_in_the_dark.wav", ambientBuffer);
+    audioManager.LoadSound("assets/audio/Menu/MainTheme.wav", ambientBuffer);
     audioManager.LoadSound("assets/audio/Menu/Voicy_Obtain.wav", sharedHoverSoundBuffer);
 }
 
@@ -446,6 +457,22 @@ void Menu::RenderImage(const std::string& imagePath, float x, float y, float w, 
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
     glDisable(GL_BLEND);
+}
+
+void Menu::LoadImage(const std::string& imagePath) {
+    if (imageTextures.find(imagePath) == imageTextures.end()) {
+        unsigned int textureID = SOIL_load_OGL_texture(
+            imagePath.c_str(),
+            SOIL_LOAD_AUTO,
+            SOIL_CREATE_NEW_ID,
+            SOIL_FLAG_MIPMAPS | SOIL_FLAG_TEXTURE_REPEATS
+        );
+        if (textureID != 0) {
+            imageTextures[imagePath] = textureID;
+        } else {
+            std::cerr << "Failed to load image: " << imagePath << " - " << SOIL_last_result() << std::endl;
+        }
+    }
 }
 
 bool Menu::HandleClick(double mouseX, double mouseY) {

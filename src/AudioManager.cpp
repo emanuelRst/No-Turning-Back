@@ -65,6 +65,7 @@ void AudioManager::PlaySound(ALuint buffer) {
 
     if (source != 0) {
         alSourcei(source, AL_BUFFER, buffer);
+        alSourcef(source, AL_GAIN, 10.0f); // Aumentar más el volumen
         alSourcePlay(source);
     } else {
         std::cerr << "No available audio sources" << std::endl;
@@ -87,5 +88,11 @@ void AudioManager::StopAmbient() {
         alSourceStop(ambientSource);
         alDeleteSources(1, &ambientSource);
         ambientSource = 0;
+    }
+}
+
+void AudioManager::StopAllSources() {
+    for (ALuint s : sources) {
+        alSourceStop(s);
     }
 }

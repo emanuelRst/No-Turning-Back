@@ -16,6 +16,7 @@ public:
     void PlaySound(ALuint buffer);
     void PlayAmbient(ALuint buffer);
     void StopAmbient();
+    void StopAllSources();
 
 private:
     ALCdevice* device;

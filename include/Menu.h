@@ -42,6 +42,7 @@ public:
     bool HandleClick(double mouseX, double mouseY);
     void HandleKeyEvent(int key); // Nueva función
     void AddButton(const std::string& text, float x, float y, float w, float h, std::function<void()> onClick, const std::string& audioPath = "");
+    void LoadImage(const std::string& imagePath); // Nueva función para pre-carga
     void StartAmbient();
     void StopAmbient();
     float GetTextWidth(const std::string& text, float scale);
