@@ -1167,7 +1167,7 @@ void Game::RenderCharacterSelect() {
         float posX = startX + i * spacing;
 
         glm::mat4 modelMat = glm::mat4(1.0f);
-        modelMat = glm::translate(modelMat, glm::vec3(posX, 0.0f, 0.0f));
+        modelMat = glm::translate(modelMat, glm::vec3(posX, -0.4f, 0.0f));
         modelMat = glm::translate(modelMat, glm::vec3(0.0f, -meshAABB.min.y * previewScale, 0.0f));
 
         if (isFocused) {
