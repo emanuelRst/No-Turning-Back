@@ -1220,7 +1220,10 @@ void Game::RenderCharacterSelect() {
         menu->RenderText(characters[i].name, screenX, screenY + 30.0f, 0.7f, nameColor, fbWidth, fbHeight);
         if (isFocused) {
             float nameWidth = menu->GetTextWidth(characters[i].name, 0.7f);
-            menu->RenderImage("assets/textures/Menu/Hand.png", screenX + nameWidth / 2.0f + 15.0f, screenY + 30.0f, 60.0f, 60.0f, fbWidth, fbHeight);
+            float cursorMargin = 80.0f;
+            float cursorWidth = 180.0f;
+            float cursorHeight = 120.0f;
+            menu->RenderImage("assets/textures/Menu/Hand.png", screenX + nameWidth / 2.0f + cursorMargin, screenY + 30.0f, cursorWidth, cursorHeight, fbWidth, fbHeight);
         }
 
         if (characterUnlocked[i]) {
