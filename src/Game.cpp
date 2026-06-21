@@ -787,13 +787,8 @@ void Game::Render() {
         menu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, true);
         menu->RenderImage("assets/textures/Menu/NO-TURNING-BACK.png", fbWidth * 0.5f, fbHeight * 0.25f, fbWidth * 0.8f, fbHeight * 0.30f, fbWidth, fbHeight);
 
-        {
-            float handX = menu->GetSelectedButtonX();
-            float handY = menu->GetSelectedButtonY();
-            if (handX > 0) {
-                menu->RenderImage("assets/textures/Menu/Hand.png", handX + 280.0f, handY, 60.0f, 60.0f, fbWidth, fbHeight);
-            }
-        }
+          menu->RenderSelectionCursor("assets/textures/Menu/Hand.png", 100.0f, 150.0f, 100.0f, fbWidth, fbHeight);
+
 
         glfwSwapBuffers(window);
         return;
@@ -1223,6 +1218,10 @@ void Game::RenderCharacterSelect() {
         bool isFocused = (focusedSlot == i && focusedSlot < numChars);
         glm::vec3 nameColor = isFocused ? glm::vec3(1.0f, 0.8f, 0.2f) : glm::vec3(0.8f, 0.8f, 0.8f);
         menu->RenderText(characters[i].name, screenX, screenY + 30.0f, 0.7f, nameColor, fbWidth, fbHeight);
+        if (isFocused) {
+            float nameWidth = menu->GetTextWidth(characters[i].name, 0.7f);
+            menu->RenderImage("assets/textures/Menu/Hand.png", screenX + nameWidth / 2.0f + 15.0f, screenY + 30.0f, 60.0f, 60.0f, fbWidth, fbHeight);
+        }
 
         if (characterUnlocked[i]) {
             glm::vec3 statusColor = isFocused ? glm::vec3(0.2f, 1.0f, 0.2f) : glm::vec3(0.6f, 0.6f, 0.6f);

@@ -463,6 +463,14 @@ void Menu::RenderImage(const std::string& imagePath, float x, float y, float w, 
     glDisable(GL_BLEND);
 }
 
+void Menu::RenderSelectionCursor(const std::string& imagePath, float margin, float w, float h, int screenWidth, int screenHeight) {
+    if (selectedButtonIndex < 0 || selectedButtonIndex >= (int)buttons.size()) return;
+    const auto& btn = buttons[selectedButtonIndex];
+    float textWidth = GetTextWidth(btn.text, btn.currentScale);
+    float rightEdge = btn.x + textWidth / 2.0f;
+    RenderImage(imagePath, rightEdge + margin, btn.y, w, h, screenWidth, screenHeight);
+}
+
 void Menu::LoadImage(const std::string& imagePath) {
     if (imageTextures.find(imagePath) == imageTextures.end()) {
         unsigned int textureID = SOIL_load_OGL_texture(
