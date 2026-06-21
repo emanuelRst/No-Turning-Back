@@ -21,6 +21,7 @@ static std::string ReadFile(const std::string& path) {
         return "";
     }
     
+    
     std::stringstream stream;
     stream << file.rdbuf();
     file.close();   
