@@ -842,8 +842,13 @@ void Game::Render() {
 
         helpMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, true);
         helpMenu->RenderImage("assets/textures/Menu/wasd.png", fbWidth / 2.0f, fbHeight / 2.0f + 150.0f, 400.0f, 400.0f, fbWidth, fbHeight);
+
         helpMenu->RenderImage("assets/textures/Menu/simbol1.png", fbWidth / 2.0f - 500.0f, fbHeight / 2.0f - 250.0f, 500.0f, 300.0f, fbWidth, fbHeight);
-        helpMenu->RenderImage("assets/textures/Menu/Hand.png", fbWidth * 0.75f, fbHeight / 2.0f, 500.0f, 500.0f, fbWidth, fbHeight);
+
+        helpMenu->RenderImage("assets/textures/Menu/metalplate.png", fbWidth * 0.450f, fbHeight / 4.0f, 400.0f, 400.0f, fbWidth, fbHeight);
+
+        helpMenu->RenderImage("assets/textures/Menu/Hand.png", fbWidth * 0.75f, fbHeight / 4.0f, 300.0f, 180.0f, fbWidth, fbHeight);
+
         helpMenu->RenderSelectionCursor("assets/textures/Menu/Hand.png", 100.0f, 150.0f, 100.0f, fbWidth, fbHeight);
 
         glfwSwapBuffers(window);
