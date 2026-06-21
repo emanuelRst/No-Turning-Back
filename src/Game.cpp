@@ -816,6 +816,18 @@ void Game::Render() {
     if (currentState == GameState::GAME_OVER) {
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+
+        glViewport(0, 0, fbWidth, fbHeight);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        std::string charName = characters[selectedModelIndex].name;
+        if (charName == "Thug") {
+            gameOverMenu->RenderImage("assets/textures/Menu/sahurfail.png", fbWidth / 2.0f, fbHeight / 2.0f, (float)fbWidth, (float)fbHeight, fbWidth, fbHeight);
+        } else if (charName == "Alien") {
+            gameOverMenu->RenderImage("assets/textures/Menu/alien.png", fbWidth / 2.0f, fbHeight / 2.0f, (float)fbWidth, (float)fbHeight, fbWidth, fbHeight);
+        }
+
         gameOverMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, false);
         
         // Dibujar texto "Perdiste"
