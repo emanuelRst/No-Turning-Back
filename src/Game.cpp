@@ -38,7 +38,9 @@ constexpr float kWallThickness = 0.6f;
 
 Game::Game(int w, int h)
     : window(nullptr), width(w), height(h), shaderProgram(0), VAO(0),
-      playerModel(nullptr), skyboxModel(nullptr), skyboxShaderProgram(0), gameTime(0.0f), groundScroll(0.0f),
+      playerModel(nullptr), skyboxModel(nullptr), skyboxShaderProgram(0),
+      coinModel(nullptr), trainObstacleModel(nullptr), rampObstacleModel(nullptr), overheadObstacleModel(nullptr),
+      gameTime(0.0f), groundScroll(0.0f),
       currentState(GameState::MENU), menu(new Menu()), gameOverMenu(new Menu()), pauseMenu(new Menu()), helpMenu(new Menu()), helpMenuKeys(new Menu()) {
     instance = this;
 
@@ -121,6 +123,9 @@ Game::~Game() {
     playerModel = nullptr;
     delete coinModel;
     delete skyboxModel;
+    delete trainObstacleModel;
+    delete rampObstacleModel;
+    delete overheadObstacleModel;
     delete menu;
     delete gameOverMenu;
     delete pauseMenu;
@@ -248,6 +253,11 @@ bool Game::Init() {
 
     // Cargar modelo del skybox
     skyboxModel = new Model("assets/models/skybox/skyboxGalax.glb");
+
+    // Cargar modelos de obstáculos
+    trainObstacleModel = new Model("assets/models/Obstacles/destroyedBus.glb");
+    rampObstacleModel = new Model("assets/models/Obstacles/OldCar.glb");
+    overheadObstacleModel = new Model("assets/models/Obstacles/roadSign.glb");
 
     // VAO del Jugador (y otros objetos sin textura)
     float verticesNoTex[] = {
@@ -977,56 +987,83 @@ void Game::RenderGameScene() {
         }
     }
 
-    // Dibujar Trenes
+    // Dibujar Trenes (modelo destroyedBus)
     glUniform1i(uc.isAnimated, 0);
-    glUniform3f(uc.objectColor, 0.85f, 0.2f, 0.12f);
-    glUniform1i(uc.useTexture, 0);
-    glBindVertexArray(VAO);
-    for (const Train& train : levelGen.GetTrains()) {
-        const glm::vec3 tp = train.GetPosition();
-        const glm::vec3 ts = train.GetHitboxSize();
-        glm::mat4 trainModel = glm::translate(glm::mat4(1.0f), tp);
-        trainModel = glm::scale(trainModel, ts * kCubeScaleFactor);
-        {
-            glm::mat3 normalM = glm::transpose(glm::inverse(glm::mat3(trainModel)));
-            glUniformMatrix3fv(uc.normalMatrix, 1, GL_FALSE, glm::value_ptr(normalM));
-        }
-        glUniformMatrix4fv(uc.model, 1, GL_FALSE, glm::value_ptr(trainModel));
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-    }
-
-    // Dibujar Obstaculos Overhead
-    glUniform3f(uc.objectColor, 0.2f, 0.8f, 0.2f);
-    for (const auto& obs : levelGen.GetOverheads()) {
-        const glm::vec3 op = obs.GetPosition();
-        const glm::vec3 os = obs.GetHitboxSize();
-        glm::mat4 obsModel = glm::translate(glm::mat4(1.0f), op);
-        obsModel = glm::scale(obsModel, os * kCubeScaleFactor);
-        {
-            glm::mat3 normalM = glm::transpose(glm::inverse(glm::mat3(obsModel)));
-            glUniformMatrix3fv(uc.normalMatrix, 1, GL_FALSE, glm::value_ptr(normalM));
-        }
-        glUniformMatrix4fv(uc.model, 1, GL_FALSE, glm::value_ptr(obsModel));
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-    }
-
-        // Dibujar Rampas (Color brillante para identificar)
-        glUniform3f(uc.objectColor, 1.0f, 1.0f, 0.0f); // Neon Yellow
-        for (const auto& ramp : levelGen.GetRamps()) {
-            const glm::vec3 rp = ramp.GetPosition();
-            const glm::vec3 rs = ramp.GetHitboxSize();
-            
-            glm::mat4 rampModel = glm::translate(glm::mat4(1.0f), rp);
-            rampModel = glm::scale(rampModel, rs * kCubeScaleFactor);
+    glUniform3f(uc.objectColor, 1.0f, 1.0f, 1.0f);
+    {
+        const ModelAABB& aabb = trainObstacleModel->GetMeshAABB();
+        const glm::vec3 modelSize = aabb.max - aabb.min;
+        const glm::vec3 centerOffset = (aabb.min + aabb.max) * 0.5f;
+        for (const Train& train : levelGen.GetTrains()) {
+            const glm::vec3 tp = train.GetPosition();
+            const glm::vec3 ts = train.GetHitboxSize();
+            glm::vec3 scale;
+            scale.x = (modelSize.z > 0.0f) ? ts.z / modelSize.x : 1.0f;
+            scale.y = (modelSize.y > 0.0f) ? ts.y / modelSize.y : 1.0f;
+            scale.z = (modelSize.x > 0.0f) ? ts.x / modelSize.z : 1.0f;
+            glm::vec3 rotatedCenter(
+                centerOffset.z * scale.z,
+                centerOffset.y * scale.y,
+                -centerOffset.x * scale.x
+            );
+            const glm::vec3 adjustedPos = tp - rotatedCenter;
+            glm::mat4 modelMat = glm::translate(glm::mat4(1.0f), adjustedPos);
+            modelMat = glm::rotate(modelMat, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            modelMat = glm::scale(modelMat, scale);
             {
-                glm::mat3 normalM = glm::transpose(glm::inverse(glm::mat3(rampModel)));
+                glm::mat3 normalM = glm::transpose(glm::inverse(glm::mat3(modelMat)));
                 glUniformMatrix3fv(uc.normalMatrix, 1, GL_FALSE, glm::value_ptr(normalM));
             }
-            glUniformMatrix4fv(uc.model, 1, GL_FALSE, glm::value_ptr(rampModel));
-            glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+            trainObstacleModel->Draw(shaderProgram, modelMat, 0.0f, "", false);
         }
+    }
+
+    // Dibujar Obstaculos Overhead (modelo roadSign)
+    glUniform1i(uc.isAnimated, 0);
+    glUniform3f(uc.objectColor, 1.0f, 1.0f, 1.0f);
+    {
+        const ModelAABB& aabb = overheadObstacleModel->GetMeshAABB();
+        const glm::vec3 modelSize = aabb.max - aabb.min;
+        const glm::vec3 centerOffset = (aabb.min + aabb.max) * 0.5f;
+        const float uniformScale = (modelSize.x > 0.0f) ? LevelGenerator::kOverheadSizeX / modelSize.x : 1.0f;
+        for (const auto& obs : levelGen.GetOverheads()) {
+            const glm::vec3 op = obs.GetPosition();
+            constexpr float kOverheadVisualYOffset = 0.3f;
+            const glm::vec3 visualPos(op.x, op.y - kOverheadVisualYOffset, op.z);
+            glm::mat4 modelMat = glm::translate(glm::mat4(1.0f), visualPos - centerOffset * uniformScale);
+            modelMat = glm::rotate(modelMat, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+            modelMat = glm::scale(modelMat, glm::vec3(uniformScale));
+            {
+                glm::mat3 normalM = glm::transpose(glm::inverse(glm::mat3(modelMat)));
+                glUniformMatrix3fv(uc.normalMatrix, 1, GL_FALSE, glm::value_ptr(normalM));
+            }
+            overheadObstacleModel->Draw(shaderProgram, modelMat, 0.0f, "", false);
+        }
+    }
+
+    // Dibujar Rampas (modelo OldCar)
+    glUniform1i(uc.isAnimated, 0);
+    glUniform3f(uc.objectColor, 1.0f, 1.0f, 1.0f);
+    {
+        const ModelAABB& aabb = rampObstacleModel->GetMeshAABB();
+        const glm::vec3 modelSize = aabb.max - aabb.min;
+        const glm::vec3 centerOffset = (aabb.min + aabb.max) * 0.5f;
+        for (const auto& ramp : levelGen.GetRamps()) {
+            const glm::vec3 rp = ramp.GetPosition();
+            const float uniformScale = (modelSize.x > 0.0f) ? LevelGenerator::kRampWidth / modelSize.x : 1.0f;
+            glm::mat4 modelMat = glm::translate(glm::mat4(1.0f), rp - centerOffset * uniformScale);
+            modelMat = glm::rotate(modelMat, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+            modelMat = glm::scale(modelMat, glm::vec3(uniformScale));
+            {
+                glm::mat3 normalM = glm::transpose(glm::inverse(glm::mat3(modelMat)));
+                glUniformMatrix3fv(uc.normalMatrix, 1, GL_FALSE, glm::value_ptr(normalM));
+            }
+            rampObstacleModel->Draw(shaderProgram, modelMat, 0.0f, "", false);
+        }
+    }
 
 
+    glUniform1i(uc.useTexture, 0);
     glUniform3f(uc.objectColor, 0.5f, 0.5f, 0.5f);
     glBindVertexArray(groundVAO);
     float scrollZ = groundScroll - (int)(groundScroll / kGroundSegmentLength) * kGroundSegmentLength;
@@ -1045,6 +1082,7 @@ void Game::RenderGameScene() {
     }
 
     // Dibujar Paredes laterales
+    glUniform1i(uc.useTexture, 0);
     glUniform3f(uc.objectColor, 0.2f, 0.15f, 0.1f);
     glBindVertexArray(VAO);
     for (const auto& wall : wallSegments) {
