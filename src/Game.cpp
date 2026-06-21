@@ -163,11 +163,11 @@ bool Game::Init() {
     pauseMenu->SetAudioManager(&audioManager);
     helpMenu->SetAudioManager(&audioManager);
     helpMenuKeys->SetAudioManager(&audioManager);
-    menu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Menu/FondoMenu.png");
-    gameOverMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Menu/FondoMenu.png");
-    pauseMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Menu/FondoMenu.png");
-    helpMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Menu/FondoMenu.png");
-    helpMenuKeys->Init("assets/fonts/DirtyWar.otf", "assets/textures/Menu/FondoMenu.png");
+    menu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
+    gameOverMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
+    pauseMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
+    helpMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
+    helpMenuKeys->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
     
     // Pre-cargar imágenes para evitar lag al renderizar
     helpMenu->LoadImage("assets/textures/Menu/wasd.png");
@@ -860,9 +860,9 @@ void Game::Render() {
 
         std::string charName = characters[selectedModelIndex].name;
         if (charName == "Thug") {
-            gameOverMenu->RenderImage("assets/textures/Menu/sahurfail.png", fbWidth / 2.0f, fbHeight / 2.0f, (float)fbWidth, (float)fbHeight, fbWidth, fbHeight);
+            gameOverMenu->RenderImage("assets/textures/GameOver/sahurfail.png", fbWidth / 2.0f, fbHeight / 2.0f, (float)fbWidth, (float)fbHeight, fbWidth, fbHeight);
         } else if (charName == "Alien") {
-            gameOverMenu->RenderImage("assets/textures/Menu/alien.png", fbWidth / 2.0f, fbHeight / 2.0f, (float)fbWidth, (float)fbHeight, fbWidth, fbHeight);
+            gameOverMenu->RenderImage("assets/textures/GameOver/alien.png", fbWidth / 2.0f, fbHeight / 2.0f, (float)fbWidth, (float)fbHeight, fbWidth, fbHeight);
         }
 
         gameOverMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, false);
@@ -1202,7 +1202,7 @@ void Game::RenderCharacterSelect() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glDisable(GL_DEPTH_TEST);
-    menu->RenderImage("assets/textures/Menu/fondoSelect.png", (float)fbWidth / 2.0f, (float)fbHeight / 2.0f, (float)fbWidth, (float)fbHeight, fbWidth, fbHeight);
+    menu->RenderImage("assets/textures/Backgrounds/fondoSelect.png", (float)fbWidth / 2.0f, (float)fbHeight / 2.0f, (float)fbWidth, (float)fbHeight, fbWidth, fbHeight);
     glEnable(GL_DEPTH_TEST);
 
     float aspect = (float)fbWidth / (float)fbHeight;
