@@ -174,6 +174,9 @@ bool Game::Init() {
     helpMenu->LoadImage("assets/textures/Menu/wasd.png");
     helpMenu->LoadImage("assets/textures/Menu/simbol1.png");
     menu->LoadImage("assets/textures/Menu/NO-TURNING-BACK.png");
+    gameOverMenu->LoadImage("assets/textures/GameOver/sahurfail.png");
+    gameOverMenu->LoadImage("assets/textures/GameOver/alien.png");
+    gameOverMenu->LoadImage("assets/textures/GameOver/teto.png");
 
     // Cargar modelos de personajes seleccionables
     // characters es dueño de los modelos; playerModel solo apunta al actual

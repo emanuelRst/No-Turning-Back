@@ -486,15 +486,20 @@ void Menu::SetButtonPosition(int index, float x, float y) {
 }
 
 void Menu::SetBackground(const std::string& bgPath) {
-    if (backgroundTexture != 0) glDeleteTextures(1, &backgroundTexture);
-    backgroundTexture = SOIL_load_OGL_texture(
-        bgPath.c_str(),
-        SOIL_LOAD_AUTO,
-        SOIL_CREATE_NEW_ID,
-        SOIL_FLAG_MIPMAPS | SOIL_FLAG_TEXTURE_REPEATS
-    );
-    if (backgroundTexture == 0) {
-        std::cerr << "Failed to load background image: " << bgPath << " - " << SOIL_last_result() << std::endl;
+    auto it = imageTextures.find(bgPath);
+    if (it != imageTextures.end()) {
+        backgroundTexture = it->second;
+    } else {
+        if (backgroundTexture != 0) glDeleteTextures(1, &backgroundTexture);
+        backgroundTexture = SOIL_load_OGL_texture(
+            bgPath.c_str(),
+            SOIL_LOAD_AUTO,
+            SOIL_CREATE_NEW_ID,
+            SOIL_FLAG_MIPMAPS | SOIL_FLAG_TEXTURE_REPEATS
+        );
+        if (backgroundTexture == 0) {
+            std::cerr << "Failed to load background image: " << bgPath << " - " << SOIL_last_result() << std::endl;
+        }
     }
 }
 
