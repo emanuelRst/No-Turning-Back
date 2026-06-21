@@ -324,6 +324,10 @@ void Menu::HandleKeyEvent(int key) {
     }
 }
 
+void Menu::SelectFirstButton() {
+    if (!buttons.empty()) selectedButtonIndex = 0;
+}
+
 void Menu::Render(unsigned int shaderProgram, unsigned int quadVAO, int width, int height, bool drawBackground) {
     glDisable(GL_DEPTH_TEST);
     
@@ -468,7 +472,9 @@ void Menu::RenderSelectionCursor(const std::string& imagePath, float margin, flo
     const auto& btn = buttons[selectedButtonIndex];
     float textWidth = GetTextWidth(btn.text, btn.currentScale);
     float rightEdge = btn.x + textWidth / 2.0f;
+    glDisable(GL_DEPTH_TEST);
     RenderImage(imagePath, rightEdge + margin, btn.y, w, h, screenWidth, screenHeight);
+    glEnable(GL_DEPTH_TEST);
 }
 
 void Menu::LoadImage(const std::string& imagePath) {

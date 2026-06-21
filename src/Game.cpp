@@ -674,6 +674,7 @@ void Game::Update(float deltaTime) {
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
             SaveProgress();
             audioManager.StopAmbient();
+            gameOverMenu->SelectFirstButton();
         }
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
