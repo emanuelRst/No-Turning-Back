@@ -781,7 +781,6 @@ void Game::ResetRun() {
                 glm::vec3(kWallThickness, kWallHeight, segLen));
         }
     }
-    SaveProgress();
 }
 
 static void RenderMixedText(Menu* normal, Menu* keyFont,
