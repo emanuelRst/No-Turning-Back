@@ -273,6 +273,7 @@ void Menu::SetMousePos(double x, double y) {
 void Menu::Update(float deltaTime, int width, int height) {
     time += deltaTime;
     float smoothSpeed = 10.0f; // Velocidad de suavizado
+    float clampedDelta = std::min(deltaTime, 1.0f / 30.0f);
 
     for (int i = 0; i < buttons.size(); ++i) {
         auto& button = buttons[i];
@@ -299,8 +300,8 @@ void Menu::Update(float deltaTime, int width, int height) {
         }
         button.wasHovered = button.isHovered;
         
-        float targetScale = button.isHovered ? 1.2f : 1.0f;
-        button.currentScale += (targetScale - button.currentScale) * smoothSpeed * deltaTime;
+        float targetScale = button.isHovered ? 1.05f : 1.0f;
+        button.currentScale += (targetScale - button.currentScale) * smoothSpeed * clampedDelta;
     }
 }
 
@@ -475,6 +476,51 @@ void Menu::RenderSelectionCursor(const std::string& imagePath, float margin, flo
     glDisable(GL_DEPTH_TEST);
     RenderImage(imagePath, rightEdge + margin, btn.y, w, h, screenWidth, screenHeight);
     glEnable(GL_DEPTH_TEST);
+}
+
+void Menu::SetButtonPosition(int index, float x, float y) {
+    if (index >= 0 && index < (int)buttons.size()) {
+        buttons[index].x = x;
+        buttons[index].y = y;
+    }
+}
+
+void Menu::SetBackground(const std::string& bgPath) {
+    if (backgroundTexture != 0) glDeleteTextures(1, &backgroundTexture);
+    backgroundTexture = SOIL_load_OGL_texture(
+        bgPath.c_str(),
+        SOIL_LOAD_AUTO,
+        SOIL_CREATE_NEW_ID,
+        SOIL_FLAG_MIPMAPS | SOIL_FLAG_TEXTURE_REPEATS
+    );
+    if (backgroundTexture == 0) {
+        std::cerr << "Failed to load background image: " << bgPath << " - " << SOIL_last_result() << std::endl;
+    }
+}
+
+void Menu::SetBackgroundShader(const std::string& fragPath) {
+    std::string vSource = ReadShaderFile("assets/shaders/background.vert");
+    std::string fSource = ReadShaderFile(fragPath);
+    const char* vSourceC = vSource.c_str();
+    const char* fSourceC = fSource.c_str();
+
+    unsigned int vShaderBg = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vShaderBg, 1, &vSourceC, NULL);
+    glCompileShader(vShaderBg);
+    unsigned int fShaderBg = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fShaderBg, 1, &fSourceC, NULL);
+    glCompileShader(fShaderBg);
+    unsigned int newProgram = glCreateProgram();
+    glAttachShader(newProgram, vShaderBg);
+    glAttachShader(newProgram, fShaderBg);
+    glLinkProgram(newProgram);
+
+    glDeleteShader(vShaderBg);
+    glDeleteShader(fShaderBg);
+
+    if (backgroundShaderProgram != 0) glDeleteProgram(backgroundShaderProgram);
+    backgroundShaderProgram = newProgram;
+    menuUC.image = glGetUniformLocation(backgroundShaderProgram, "image");
 }
 
 void Menu::LoadImage(const std::string& imagePath) {

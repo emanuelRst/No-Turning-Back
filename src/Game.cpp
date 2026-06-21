@@ -165,6 +165,7 @@ bool Game::Init() {
     helpMenuKeys->SetAudioManager(&audioManager);
     menu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
     gameOverMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
+    gameOverMenu->SetBackgroundShader("assets/shaders/background_fog.frag");
     pauseMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
     helpMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
     helpMenuKeys->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
@@ -706,6 +707,11 @@ void Game::Update(float deltaTime) {
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
             SaveProgress();
             audioManager.StopAmbient();
+            int fbW, fbH;
+            glfwGetFramebufferSize(window, &fbW, &fbH);
+            float btnY = fbH * 0.85f;
+            gameOverMenu->SetButtonPosition(0, fbW * 0.35f, btnY);
+            gameOverMenu->SetButtonPosition(1, fbW * 0.65f, btnY);
             gameOverMenu->SelectFirstButton();
         }
         int fbWidth, fbHeight;
@@ -843,11 +849,11 @@ void Game::Render() {
         helpMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, true);
         helpMenu->RenderImage("assets/textures/Menu/wasd.png", fbWidth / 2.0f, fbHeight / 2.0f + 150.0f, 400.0f, 400.0f, fbWidth, fbHeight);
 
-        helpMenu->RenderImage("assets/textures/Menu/simbol1.png", fbWidth / 2.0f - 500.0f, fbHeight / 2.0f - 250.0f, 500.0f, 300.0f, fbWidth, fbHeight);
+        helpMenu->RenderImage("assets/textures/Menu/simbol1.png", fbWidth / 2.0f - 680.0f, fbHeight / 2.0f - 250.0f, 500.0f, 300.0f, fbWidth, fbHeight);
 
-        helpMenu->RenderImage("assets/textures/Menu/metalplate.png", fbWidth * 0.450f, fbHeight / 4.0f, 400.0f, 400.0f, fbWidth, fbHeight);
+        helpMenu->RenderImage("assets/textures/Menu/Hand.png", fbWidth * 0.80f, fbHeight / 4.0f, 300.0f, 180.0f, fbWidth, fbHeight);
 
-        helpMenu->RenderImage("assets/textures/Menu/Hand.png", fbWidth * 0.75f, fbHeight / 4.0f, 300.0f, 180.0f, fbWidth, fbHeight);
+        helpMenu->RenderImage("assets/textures/Menu/metalplate.png", fbWidth * 0.460f, fbHeight / 4.0f, 650.0f, 350.0f, fbWidth, fbHeight);
 
         helpMenu->RenderSelectionCursor("assets/textures/Menu/Hand.png", 100.0f, 150.0f, 100.0f, fbWidth, fbHeight);
 
@@ -865,12 +871,14 @@ void Game::Render() {
 
         std::string charName = characters[selectedModelIndex].name;
         if (charName == "Thug") {
-            gameOverMenu->RenderImage("assets/textures/GameOver/sahurfail.png", fbWidth / 2.0f, fbHeight / 2.0f, (float)fbWidth, (float)fbHeight, fbWidth, fbHeight);
+            gameOverMenu->SetBackground("assets/textures/GameOver/sahurfail.png");
         } else if (charName == "Alien") {
-            gameOverMenu->RenderImage("assets/textures/GameOver/alien.png", fbWidth / 2.0f, fbHeight / 2.0f, (float)fbWidth, (float)fbHeight, fbWidth, fbHeight);
+            gameOverMenu->SetBackground("assets/textures/GameOver/alien.png");
+        } else if (charName == "Teto") {
+            gameOverMenu->SetBackground("assets/textures/GameOver/teto.png");
         }
 
-        gameOverMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, false);
+        gameOverMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, true);
         
         // Dibujar texto "Perdiste"
         gameOverMenu->RenderText("Game Over", fbWidth / 2.0f, fbHeight / 2.0f - 100.0f, 1.5f, glm::vec3(1.0f, 0.0f, 0.0f), fbWidth, fbHeight);
