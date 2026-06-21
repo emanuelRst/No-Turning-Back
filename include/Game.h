@@ -99,6 +99,9 @@ private:
     unsigned int groundTexture;
 
     Model* coinModel;
+    Model* trainObstacleModel;
+    Model* rampObstacleModel;
+    Model* overheadObstacleModel;
     int runCoins = 0;
     int totalCoins = 0;
     float score = 0.0f;
