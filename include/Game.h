@@ -7,6 +7,7 @@
 #include "Player.h"
 #include "LevelGenerator.h"
 #include "Model.h"
+#include "AudioManager.h"
 
 #include <vector>
 #include <string>
@@ -64,6 +65,7 @@ private:
     Menu* helpMenu;
     Menu* helpMenuKeys; // NEW
     
+    AudioManager audioManager; // Added here properly
     // Shader program y buffers
     unsigned int shaderProgram;
     unsigned int menuShaderProgram;
@@ -99,7 +101,10 @@ private:
     unsigned int groundTexture;
 
     Model* coinModel;
+    ALuint gameAmbientBuffer = 0;
+    ALuint characterSelectAmbientBuffer = 0;
     int runCoins = 0;
+
     int totalCoins = 0;
     float score = 0.0f;
     std::vector<bool> characterUnlocked;

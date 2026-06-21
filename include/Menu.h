@@ -47,17 +47,21 @@ public:
     void StopAmbient();
     float GetTextWidth(const std::string& text, float scale);
     void GetTextVerticalBounds(const std::string& text, float scale, float& minBearingY, float& maxBearingY);
+    void PlaySound(ALuint buffer);
+    ALuint GetHoverSoundBuffer() const { return sharedHoverSoundBuffer; }
+    void SetAudioManager(AudioManager* am);
 
 private:
     std::vector<Button> buttons;
     double mouseX = 0.0, mouseY = 0.0;
-    float time = 0.0f; // Track time for effects
-    int selectedButtonIndex = -1; // Índice del botón seleccionado por teclado
+    float time = 0.0f;
+    int selectedButtonIndex = -1;
     
-    AudioManager audioManager;
+    AudioManager* audioManager = nullptr;
     
     ALuint ambientBuffer = 0;
-    ALuint sharedHoverSoundBuffer = 0; // NEW
+    ALuint sharedHoverSoundBuffer = 0;
+
 
     struct MenuUniformCache {
         GLint textColor;

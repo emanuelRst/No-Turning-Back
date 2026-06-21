@@ -4,7 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <utility> // For std::pair
+#include <utility>
 #include <thread>
 #include <chrono>
 #include <glm/glm.hpp>
@@ -20,9 +20,10 @@ static std::string ReadFile(const std::string& path) {
         std::cerr << "ERROR::SHADER::FILE_NOT_FOUND: " << path << std::endl;
         return "";
     }
+    
     std::stringstream stream;
     stream << file.rdbuf();
-    file.close();
+    file.close();   
     return stream.str();
 }
 
@@ -55,30 +56,31 @@ Game::Game(int w, int h)
         this->gameStartTimer = 4.0f;
         this->animStateStartTime = glfwGetTime();
         this->lastAnimState = Player::AnimState::Dance;
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-    }, "assets/audio/Menu/Voicy_Obtain.wav");
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        this->audioManager.PlayAmbient(this->gameAmbientBuffer);
+    }, "assets/audio/Menu/Buttoms.wav");
 
     // Botón 2: Change Characters (Y: 675)
     menu->AddButton("Change Characters", fixedX, 690, targetButtonWidth, targetButtonHeight, [this](){ 
         this->focusedSlot = 0;
         this->charSelectTime = 0.0f;
         this->currentState = GameState::CHARACTER_SELECT;
-    }, "assets/audio/Menu/Voicy_Obtain.wav");
+    }, "assets/audio/Menu/Buttoms.wav");
 
     // Botón 3: Help (Y: 730)
     menu->AddButton("Help", fixedX, 775, targetButtonWidth, targetButtonHeight, [this](){
         this->currentState = GameState::HELP;
-    }, "assets/audio/Menu/Voicy_Obtain.wav");
+    }, "assets/audio/Menu/Buttoms.wav");
 
     // Botón 4: Credits (Y: 785)
     menu->AddButton("Credits", fixedX, 840, targetButtonWidth, targetButtonHeight, [](){ 
         std::cout << "Credits\n"; 
-    }, "assets/audio/Menu/Voicy_Obtain.wav");
+    }, "assets/audio/Menu/Buttoms.wav");
 
     // Botón 5: Exit (Y: 840)
     menu->AddButton("Exit", fixedX, 900, targetButtonWidth, targetButtonHeight, [this](){
         glfwSetWindowShouldClose(this->window, true);
-    }, "assets/audio/Menu/Voicy_Obtain.wav");
+    }, "assets/audio/Menu/Buttoms.wav");
 
     // Configurar botones de Game Over (uno al lado del otro, más abajo)
     float gameOverY = 700.0f;
@@ -87,27 +89,31 @@ Game::Game(int w, int h)
         this->ResetRun();
         this->currentState = GameState::PLAYING;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    }, "assets/audio/Menu/Voicy_Obtain.wav");
+        this->audioManager.PlayAmbient(this->gameAmbientBuffer);
+    }, "assets/audio/Menu/Buttoms.wav");
     gameOverMenu->AddButton("Back to Menu", (float)width / 2.0f + btnGap + 400.0f, gameOverY, 300, 100, [this](){
         this->currentState = GameState::MENU;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-    }, "assets/audio/Menu/Voicy_Obtain.wav");
+        this->audioManager.StopAmbient();
+    }, "assets/audio/Menu/Buttoms.wav");
 
     // Configurar botones de Pausa
     float pauseY = (float)height / 2.0f;
     pauseMenu->AddButton("Resume", (float)width / 2.0f, pauseY - 100.0f, 300, 100, [this](){
         this->currentState = GameState::PLAYING;
         glfwSetInputMode(this->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    }, "assets/audio/Menu/Voicy_Obtain.wav");
+        this->audioManager.PlayAmbient(this->gameAmbientBuffer);
+    }, "assets/audio/Menu/Buttoms.wav");
     pauseMenu->AddButton("Back to Menu", (float)width / 2.0f, pauseY + 50.0f, 300, 100, [this](){
         this->currentState = GameState::MENU;
         glfwSetInputMode(this->window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-    }, "assets/audio/Menu/Voicy_Obtain.wav");
+        this->audioManager.StopAmbient();
+    }, "assets/audio/Menu/Buttoms.wav");
 
     // Configurar boton de Ayuda
     helpMenu->AddButton("Back", ((float)width / 2.0f) + 567.0f, (float)height + 300.0f, 300, 100, [this](){
         this->currentState = GameState::MENU;
-    }, "assets/audio/Menu/Voicy_Obtain.wav");
+    }, "assets/audio/Menu/Buttoms.wav");
     
     ResetRun();
 }
@@ -126,6 +132,8 @@ Game::~Game() {
     delete pauseMenu;
     delete helpMenu;
     delete helpMenuKeys;
+    if (gameAmbientBuffer != 0) alDeleteBuffers(1, &gameAmbientBuffer);
+    if (characterSelectAmbientBuffer != 0) alDeleteBuffers(1, &characterSelectAmbientBuffer);
     glfwTerminate();
 }
 
@@ -143,6 +151,11 @@ bool Game::Init() {
     
     // Inicializar menú
     // Inicializar menú
+    menu->SetAudioManager(&audioManager);
+    gameOverMenu->SetAudioManager(&audioManager);
+    pauseMenu->SetAudioManager(&audioManager);
+    helpMenu->SetAudioManager(&audioManager);
+    helpMenuKeys->SetAudioManager(&audioManager);
     menu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Menu/FondoMenu.png");
     gameOverMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Menu/FondoMenu.png");
     pauseMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Menu/FondoMenu.png");
@@ -245,6 +258,12 @@ bool Game::Init() {
 
     // Cargar modelo de moneda
     coinModel = new Model("assets/scene/coin.glb");
+    if (!audioManager.LoadSound("assets/audio/Menu/GameTheme.wav", gameAmbientBuffer)) {
+        std::cerr << "ERROR CARGANDO GameTheme.wav" << std::endl;
+    } else {
+        std::cout << "GameTheme.wav cargado correctamente, buffer = " << gameAmbientBuffer << std::endl;
+    }
+    audioManager.LoadSound("assets/audio/Menu/Character-Select.wav", characterSelectAmbientBuffer);
 
     // Cargar modelo del skybox
     skyboxModel = new Model("assets/models/skybox/skyboxGalax.glb");
@@ -364,9 +383,11 @@ void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, in
             } else if (instance->currentState == GameState::PLAYING) {
                 instance->currentState = GameState::PAUSED;
                 glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+                instance->audioManager.StopAmbient();
             } else if (instance->currentState == GameState::PAUSED) {
                 instance->currentState = GameState::PLAYING;
                 glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+                instance->audioManager.PlayAmbient(instance->gameAmbientBuffer);
             } else if (instance->currentState == GameState::HELP) {
                 instance->currentState = GameState::MENU;
             }
@@ -379,21 +400,27 @@ void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, in
             if (key == GLFW_KEY_RIGHT || key == GLFW_KEY_D) {
                 if (instance->focusedSlot < numChars) {
                     instance->focusedSlot = (instance->focusedSlot + 1) % numChars;
+                    instance->menu->PlaySound(instance->menu->GetHoverSoundBuffer());
                 }
             } else if (key == GLFW_KEY_LEFT || key == GLFW_KEY_A) {
                 if (instance->focusedSlot < numChars) {
                     instance->focusedSlot = (instance->focusedSlot - 1 + numChars) % numChars;
+                    instance->menu->PlaySound(instance->menu->GetHoverSoundBuffer());
                 }
             } else if (key == GLFW_KEY_DOWN || key == GLFW_KEY_S) {
                 instance->focusedSlot = numChars; // Back button
+                instance->menu->PlaySound(instance->menu->GetHoverSoundBuffer());
             } else if (key == GLFW_KEY_UP || key == GLFW_KEY_W) {
                 if (instance->focusedSlot == numChars) {
                     instance->focusedSlot = 0;
+                    instance->menu->PlaySound(instance->menu->GetHoverSoundBuffer());
                 }
             } else if (key == GLFW_KEY_ENTER) {
                 if (instance->focusedSlot == numChars) {
                     instance->currentState = GameState::MENU;
+                    instance->menu->PlaySound(instance->menu->GetHoverSoundBuffer());
                 } else if (instance->focusedSlot < numChars) {
+                    instance->menu->PlaySound(instance->menu->GetHoverSoundBuffer());
                     if (instance->characterUnlocked[instance->focusedSlot]) {
                         instance->selectedModelIndex = instance->focusedSlot;
                         instance->playerModel = instance->characters[instance->focusedSlot].model;
@@ -511,6 +538,7 @@ void Game::MouseButtonCallback(GLFWwindow* window, int button, int action, int m
                     instance->totalCoins -= 100;
                     instance->SaveProgress();
                 }
+                instance->menu->PlaySound(instance->menu->GetHoverSoundBuffer());
                 return;
             }
         }
@@ -522,6 +550,7 @@ void Game::MouseButtonCallback(GLFWwindow* window, int button, int action, int m
         if (xpos >= backX - halfW && xpos <= backX + halfW &&
             ypos >= backY - halfH && ypos <= backY + halfH) {
             instance->currentState = GameState::MENU;
+            instance->menu->PlaySound(instance->menu->GetHoverSoundBuffer());
             return;
         }
     } else if (instance->currentState == GameState::MENU) {
@@ -574,9 +603,16 @@ void Game::Update(float deltaTime) {
         if (currentState == GameState::MENU) {
             ResetRun();
             menu->StartAmbient();
-        } else if (prevState == GameState::MENU) {
+        } else if (prevState == GameState::MENU && currentState != GameState::PLAYING) {
             menu->StopAmbient();
         }
+
+        if (currentState == GameState::CHARACTER_SELECT) {
+            audioManager.PlayAmbient(characterSelectAmbientBuffer);
+        } else if (prevState == GameState::CHARACTER_SELECT && currentState != GameState::MENU) {
+            audioManager.StopAmbient();
+        }
+
         prevState = currentState;
     }
 
@@ -631,6 +667,7 @@ void Game::Update(float deltaTime) {
             currentState = GameState::GAME_OVER;
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
             SaveProgress();
+            audioManager.StopAmbient();
         }
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
