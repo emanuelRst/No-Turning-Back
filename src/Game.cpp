@@ -1113,6 +1113,10 @@ void Game::RenderCharacterSelect() {
     glClearColor(0.05f, 0.05f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    glDisable(GL_DEPTH_TEST);
+    menu->RenderImage("assets/textures/Menu/fondoSelect.png", (float)fbWidth / 2.0f, (float)fbHeight / 2.0f, (float)fbWidth, (float)fbHeight, fbWidth, fbHeight);
+    glEnable(GL_DEPTH_TEST);
+
     float aspect = (float)fbWidth / (float)fbHeight;
     glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
     glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 1.2f, 4.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
