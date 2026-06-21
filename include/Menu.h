@@ -1,6 +1,7 @@
 #ifndef MENU_H
 #define MENU_H
 
+#include <glad/glad.h>
 #include <vector>
 #include <string>
 #include <functional>
@@ -57,6 +58,15 @@ private:
     
     ALuint ambientBuffer = 0;
     ALuint sharedHoverSoundBuffer = 0; // NEW
+
+    struct MenuUniformCache {
+        GLint textColor;
+        GLint text;
+        GLint projection;
+        GLint image;
+    } menuUC;
+
+    bool menuUCInitialized = false;
     
     std::map<char, Character> Characters;
     unsigned int textVAO, textVBO;

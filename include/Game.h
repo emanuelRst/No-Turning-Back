@@ -10,11 +10,12 @@
 
 #include <vector>
 #include <string>
+#include <nlohmann/json.hpp>
 
 // Forward declaration
 class Menu;
 
-enum class GameState { MENU, PLAYING, GAME_OVER, PAUSED, HELP };
+enum class GameState { MENU, PLAYING, GAME_OVER, PAUSED, HELP, CHARACTER_SELECT };
 
 // Clase sencilla para los segmentos del suelo
 class GroundSegment : public GameObject {
@@ -48,6 +49,10 @@ private:
     void ResetTrain(Train& train);
     void ResetRun();
     void RenderGameScene();
+    void RenderCharacterSelect();
+    void RenderHUD();
+    void SaveProgress();
+    void LoadProgress();
 
     GLFWwindow* window;
     int width, height;
@@ -62,23 +67,51 @@ private:
     // Shader program y buffers
     unsigned int shaderProgram;
     unsigned int menuShaderProgram;
+    unsigned int skyboxShaderProgram;
     unsigned int VAO;
     Model* playerModel;
+    Model* skyboxModel;
     LevelGenerator levelGen;
     std::vector<GroundSegment> groundSegments;
+    std::vector<GroundSegment> wallSegments;
 
     float gameTime;
     float groundScroll;
+    float gameStartTimer = 0.0f;
+    double animStateStartTime = 0.0;
+    Player::AnimState lastAnimState = Player::AnimState::Run;
+    std::string prevAnimName = "";
+    float prevAnimTime = 0.0f;
+    bool prevAnimLoop = true;
+    std::string lastAnimName = "";
+    float lastAnimTime = 0.0f;
+    bool lastAnimLoop = true;
+    float crossFadeDuration = 0.25f;
+
+    struct CharacterOption {
+        std::string name;
+        std::string modelPath;
+        Model* model;
+    };
 
     // Instancia estática para acceder desde el callback
     unsigned int groundVAO, groundVBO, groundEBO;
     unsigned int groundTexture;
 
-    unsigned int menuFBO = 0;
-    unsigned int menuFBOTexture = 0;
-    unsigned int menuFBORBO = 0;
-    int menuFBOWidth = 0, menuFBOHeight = 0;
-    unsigned int blurVAO = 0, blurVBO = 0;
+    Model* coinModel;
+    int runCoins = 0;
+    int totalCoins = 0;
+    float score = 0.0f;
+    std::vector<bool> characterUnlocked;
+
+    std::vector<CharacterOption> characters;
+    int focusedSlot = 0;
+    int selectedModelIndex = 0;
+    float charSelectTime = 0.0f;
+    float charFocusStartTime = 0.0f;
+    int lastFocusedSlot = -1;
+    bool charSelectBackHovered = false;
+    float charSelectBackScale = 1.0f;
 
     static Game* instance;
 public:

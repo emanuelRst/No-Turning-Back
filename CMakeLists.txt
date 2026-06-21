@@ -59,6 +59,7 @@ add_executable(EndlessRunner
     src/Menu.cpp
     src/AudioManager.cpp
     src/States.cpp
+    src/Coin.cpp
     vendor/glad/glad.c
 )
 

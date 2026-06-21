@@ -33,25 +33,76 @@ Model::~Model() {
     }
 }
 
-void Model::Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float animationTime, unsigned int animIndex) {
-    if (scene && scene->HasAnimations() && animIndex < scene->mNumAnimations) {
+float Model::GetAnimationDurationInSeconds(const std::string& animName) const {
+    auto it = animationMapping.find(animName);
+    if (it != animationMapping.end() && scene && scene->HasAnimations()) {
+        unsigned int animIndex = it->second;
+        const aiAnimation* anim = scene->mAnimations[animIndex];
+        float TicksPerSecond = (float)(anim->mTicksPerSecond != 0 ? anim->mTicksPerSecond : 25.0f);
+        return (float)anim->mDuration / TicksPerSecond;
+    }
+    return 0.0f;
+}
+
+void Model::Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float animationTime, const std::string& animName, bool loop,
+                 float blendFactor, const std::string& prevAnimName, float prevAnimTime, bool prevAnimLoop) {
+    if (shaderProgram != lastShaderProgram) {
+        lastShaderProgram = shaderProgram;
+        cachedModelLoc = glGetUniformLocation(shaderProgram, "model");
+        cachedUseTextureLoc = glGetUniformLocation(shaderProgram, "useTexture");
+        for (int i = 0; i < 100; i++) {
+            cachedBoneLocs[i] = glGetUniformLocation(shaderProgram,
+                ("boneMatrices[" + std::to_string(i) + "]").c_str());
+        }
+    }
+
+    int animIndex = -1;
+    if (!animName.empty()) {
+        auto it = animationMapping.find(animName);
+        if (it != animationMapping.end()) {
+            animIndex = (int)it->second;
+        }
+    }
+
+    m_BoneMatrices.resize(boneCount);
+
+    if (animIndex != -1 && scene && scene->HasAnimations() && animIndex < (int)scene->mNumAnimations) {
         const aiAnimation* anim = scene->mAnimations[animIndex];
         float TicksPerSecond = (float)(anim->mTicksPerSecond != 0 ? anim->mTicksPerSecond : 25.0f);
         float TimeInTicks = animationTime * TicksPerSecond;
-        float AnimationTime = fmod(TimeInTicks, (float)anim->mDuration);
+        float AnimationTime = loop ? fmod(TimeInTicks, (float)anim->mDuration) : std::min(TimeInTicks, (float)anim->mDuration);
 
-        m_BoneMatrices.resize(boneCount);
         ReadNodeHierarchy(AnimationTime, scene->mRootNode, glm::mat4(1.0f), animIndex);
+
+        if (blendFactor > 0.0f && !prevAnimName.empty()) {
+            auto prevIt = animationMapping.find(prevAnimName);
+            if (prevIt != animationMapping.end()) {
+                std::vector<glm::mat4> currentMatrices = m_BoneMatrices;
+                int prevAnimIndex = (int)prevIt->second;
+                const aiAnimation* prevAnim = scene->mAnimations[prevAnimIndex];
+                float prevTicksPerSecond = (float)(prevAnim->mTicksPerSecond != 0 ? prevAnim->mTicksPerSecond : 25.0f);
+                float prevTimeInTicks = prevAnimTime * prevTicksPerSecond;
+                float prevAnimationTime = prevAnimLoop
+                    ? fmod(prevTimeInTicks, (float)prevAnim->mDuration)
+                    : std::min(prevTimeInTicks, (float)prevAnim->mDuration);
+                ReadNodeHierarchy(prevAnimationTime, scene->mRootNode, glm::mat4(1.0f), prevAnimIndex);
+                for (unsigned int i = 0; i < m_BoneMatrices.size(); i++) {
+                    m_BoneMatrices[i] = m_BoneMatrices[i] * (1.0f - blendFactor) + currentMatrices[i] * blendFactor;
+                }
+            }
+        }
+
         for (unsigned int i = 0; i < m_BoneMatrices.size(); i++) {
-             glUniformMatrix4fv(glGetUniformLocation(shaderProgram, ("boneMatrices[" + std::to_string(i) + "]").c_str()), 1, GL_FALSE, glm::value_ptr(m_BoneMatrices[i]));
+             glUniformMatrix4fv(cachedBoneLocs[i], 1, GL_FALSE, glm::value_ptr(m_BoneMatrices[i]));
         }
     } else {
         glm::mat4 identity(1.0f);
-        for(int i = 0; i < 100; i++)
-             glUniformMatrix4fv(glGetUniformLocation(shaderProgram, ("boneMatrices[" + std::to_string(i) + "]").c_str()), 1, GL_FALSE, glm::value_ptr(identity));
+        for (unsigned int i = 0; i < m_BoneMatrices.size(); i++) {
+            glUniformMatrix4fv(cachedBoneLocs[i], 1, GL_FALSE, glm::value_ptr(identity));
+        }
     }
 
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(modelMatrix));
+    glUniformMatrix4fv(cachedModelLoc, 1, GL_FALSE, glm::value_ptr(modelMatrix));
     
     bool hasTextures = false;
     for (const auto& mesh : meshes) {
@@ -60,7 +111,12 @@ void Model::Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float
             break;
         }
     }
-    glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), hasTextures ? 1 : 0);
+    glUniform1i(cachedUseTextureLoc, hasTextures ? 1 : 0);
+
+    if (shaderProgram != lastTexUniformProgram) {
+        lastTexUniformProgram = shaderProgram;
+        textureUniformCache.clear();
+    }
 
     for (auto& mesh : meshes) {
         unsigned int diffuseNr = 1;
@@ -69,8 +125,14 @@ void Model::Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float
             std::string number;
             std::string name = mesh.textures[i].type;
             if (name == "texture_diffuse") number = std::to_string(diffuseNr++);
-            
-            glUniform1i(glGetUniformLocation(shaderProgram, (name + number).c_str()), i);
+
+            std::string uniformName = name + number;
+            auto it = textureUniformCache.find(uniformName);
+            if (it == textureUniformCache.end()) {
+                it = textureUniformCache.emplace(uniformName,
+                    glGetUniformLocation(shaderProgram, uniformName.c_str())).first;
+            }
+            glUniform1i(it->second, i);
             glBindTexture(GL_TEXTURE_2D, mesh.textures[i].id);
         }
 
@@ -83,6 +145,14 @@ void Model::Draw(unsigned int shaderProgram, const glm::mat4& modelMatrix, float
     
     glDisableVertexAttribArray(3);
     glDisableVertexAttribArray(4);
+}
+
+int Model::GetAnimationIndex(const std::string& name) const {
+    auto it = animationMapping.find(name);
+    if (it != animationMapping.end()) {
+        return (int)it->second;
+    }
+    return -1;
 }
 
 void Model::LoadModel(const std::string& path) {
@@ -103,6 +173,22 @@ void Model::LoadModel(const std::string& path) {
 
     // AABB real: recorrer la jerarquía aplicando mTransformation de cada nodo.
     ComputeAABB(scene->mRootNode, glm::mat4(1.0f));
+
+    // Mapear animaciones por nombre
+    for (unsigned int i = 0; i < scene->mNumAnimations; ++i) {
+        std::string name = scene->mAnimations[i]->mName.C_Str();
+        animationMapping[name] = i;
+    }
+
+    // Poblar cache de canales de animacion (FindNodeAnim O(1))
+    for (unsigned int i = 0; i < scene->mNumAnimations; ++i) {
+        const aiAnimation* anim = scene->mAnimations[i];
+        std::string animName = anim->mName.C_Str();
+        auto& channelMap = animChannelCache[animName];
+        for (unsigned int j = 0; j < anim->mNumChannels; ++j) {
+            channelMap[std::string(anim->mChannels[j]->mNodeName.C_Str())] = j;
+        }
+    }
 
     // Si la carga no produjo vértices (escena vacía), dejar un AABB unitario
     // para que la hitbox resultante no sea degenerada.
@@ -211,6 +297,12 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
     if (mesh->mMaterialIndex >= 0) {
         aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
         std::vector<Texture> diffuseMaps = loadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
+        if (diffuseMaps.empty()) {
+            diffuseMaps = loadMaterialTextures(material, aiTextureType_BASE_COLOR, "texture_diffuse");
+        }
+        if (diffuseMaps.empty()) {
+            diffuseMaps = loadMaterialTextures(material, aiTextureType_EMISSIVE, "texture_diffuse");
+        }
         newMesh.textures.insert(newMesh.textures.end(), diffuseMaps.begin(), diffuseMaps.end());
     }
 
@@ -302,13 +394,13 @@ unsigned int Model::TextureFromFile(const char *path, const std::string &directo
 }
 
 const aiNodeAnim* Model::FindNodeAnim(const aiAnimation* pAnimation, const std::string NodeName) {
-    for (unsigned int i = 0; i < pAnimation->mNumChannels; i++) {
-        const aiNodeAnim* pNodeAnim = pAnimation->mChannels[i];
-        if (std::string(pNodeAnim->mNodeName.data) == NodeName) {
-            return pNodeAnim;
-        }
-    }
-    return nullptr;
+    std::string animName = pAnimation->mName.C_Str();
+    auto animIt = animChannelCache.find(animName);
+    if (animIt == animChannelCache.end()) return nullptr;
+    auto& channelMap = animIt->second;
+    auto chIt = channelMap.find(NodeName);
+    if (chIt == channelMap.end()) return nullptr;
+    return pAnimation->mChannels[chIt->second];
 }
 
 void Model::CalcInterpolatedRotation(aiQuaternion& Out, float AnimationTime, const aiNodeAnim* pNodeAnim) {
