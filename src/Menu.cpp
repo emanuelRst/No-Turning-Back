@@ -257,8 +257,12 @@ void Menu::Init(const std::string& fontPath, const std::string& bgPath) {
         if (button.height == 0.0f) button.height = 64.0f; 
     }
 
-    if (audioManager) audioManager->LoadSound("assets/audio/Menu/MainTheme.wav", ambientBuffer);
-    if (audioManager) audioManager->LoadSound("assets/audio/Menu/Buttoms.wav", sharedHoverSoundBuffer);
+    if (audioManager) {
+        if (!audioManager->LoadSound("assets/audio/Menu/MainTheme.wav", ambientBuffer)) {
+            std::cerr << "ERROR CARGANDO MainTheme.wav en Menu::Init" << std::endl;
+        }
+        audioManager->LoadSound("assets/audio/Menu/Buttoms.wav", sharedHoverSoundBuffer);
+    }
 }
 
 void Menu::SetMousePos(double x, double y) {

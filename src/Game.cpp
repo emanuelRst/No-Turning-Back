@@ -265,6 +265,11 @@ bool Game::Init() {
         std::cout << "GameTheme.wav cargado correctamente, buffer = " << gameAmbientBuffer << std::endl;
     }
     audioManager.LoadSound("assets/audio/Menu/Character-Select.wav", characterSelectAmbientBuffer);
+    if (characterSelectAmbientBuffer == 0) {
+        std::cerr << "ERROR CARGANDO Character-Select.wav" << std::endl;
+    } else {
+        std::cout << "Character-Select.wav cargado, buffer = " << characterSelectAmbientBuffer << std::endl;
+    }
 
     // Cargar modelo del skybox
     skyboxModel = new Model("assets/models/skybox/skyboxGalax.glb");
