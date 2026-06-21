@@ -58,8 +58,8 @@ Menu::Menu() {}
 
 Menu::~Menu() {
     // Detener todo el audio antes de borrar buffers
-    audioManager.StopAmbient();
-    audioManager.StopAllSources();
+    if (audioManager) audioManager->StopAmbient();
+    if (audioManager) audioManager->StopAllSources();
 
     // Borrar buffers de sonido
     if (ambientBuffer != 0) alDeleteBuffers(1, &ambientBuffer);
@@ -257,8 +257,12 @@ void Menu::Init(const std::string& fontPath, const std::string& bgPath) {
         if (button.height == 0.0f) button.height = 64.0f; 
     }
 
-    audioManager.LoadSound("assets/audio/Menu/MainTheme.wav", ambientBuffer);
-    audioManager.LoadSound("assets/audio/Menu/Voicy_Obtain.wav", sharedHoverSoundBuffer);
+    if (audioManager) {
+        if (!audioManager->LoadSound("assets/audio/Menu/MainTheme.wav", ambientBuffer)) {
+            std::cerr << "ERROR CARGANDO MainTheme.wav en Menu::Init" << std::endl;
+        }
+        audioManager->LoadSound("assets/audio/Menu/Buttoms.wav", sharedHoverSoundBuffer);
+    }
 }
 
 void Menu::SetMousePos(double x, double y) {
@@ -290,7 +294,7 @@ void Menu::Update(float deltaTime, int width, int height) {
         if (button.isHovered && !button.wasHovered) {
             ALuint soundToPlay = (button.hoverSoundBuffer != 0) ? button.hoverSoundBuffer : sharedHoverSoundBuffer;
             if (soundToPlay != 0) {
-                audioManager.PlaySound(soundToPlay);
+                if (audioManager) audioManager->PlaySound(soundToPlay);
             }
         }
         button.wasHovered = button.isHovered;
@@ -306,11 +310,11 @@ void Menu::HandleKeyEvent(int key) {
     if (key == GLFW_KEY_UP) {
         selectedButtonIndex--;
         if (selectedButtonIndex < 0) selectedButtonIndex = (int)buttons.size() - 1;
-        if (sharedHoverSoundBuffer != 0) audioManager.PlaySound(sharedHoverSoundBuffer);
+        if (sharedHoverSoundBuffer != 0 && audioManager) audioManager->PlaySound(sharedHoverSoundBuffer);
     } else if (key == GLFW_KEY_DOWN) {
         selectedButtonIndex++;
         if (selectedButtonIndex >= (int)buttons.size()) selectedButtonIndex = 0;
-        if (sharedHoverSoundBuffer != 0) audioManager.PlaySound(sharedHoverSoundBuffer);
+        if (sharedHoverSoundBuffer != 0 && audioManager) audioManager->PlaySound(sharedHoverSoundBuffer);
     } else if (key == GLFW_KEY_ENTER) {
         if (selectedButtonIndex >= 0 && selectedButtonIndex < (int)buttons.size()) {
             if (buttons[selectedButtonIndex].onClick) {
@@ -318,6 +322,10 @@ void Menu::HandleKeyEvent(int key) {
             }
         }
     }
+}
+
+void Menu::SelectFirstButton() {
+    if (!buttons.empty()) selectedButtonIndex = 0;
 }
 
 void Menu::Render(unsigned int shaderProgram, unsigned int quadVAO, int width, int height, bool drawBackground) {
@@ -459,6 +467,16 @@ void Menu::RenderImage(const std::string& imagePath, float x, float y, float w, 
     glDisable(GL_BLEND);
 }
 
+void Menu::RenderSelectionCursor(const std::string& imagePath, float margin, float w, float h, int screenWidth, int screenHeight) {
+    if (selectedButtonIndex < 0 || selectedButtonIndex >= (int)buttons.size()) return;
+    const auto& btn = buttons[selectedButtonIndex];
+    float textWidth = GetTextWidth(btn.text, btn.currentScale);
+    float rightEdge = btn.x + textWidth / 2.0f;
+    glDisable(GL_DEPTH_TEST);
+    RenderImage(imagePath, rightEdge + margin, btn.y, w, h, screenWidth, screenHeight);
+    glEnable(GL_DEPTH_TEST);
+}
+
 void Menu::LoadImage(const std::string& imagePath) {
     if (imageTextures.find(imagePath) == imageTextures.end()) {
         unsigned int textureID = SOIL_load_OGL_texture(
@@ -495,19 +513,27 @@ bool Menu::HandleClick(double mouseX, double mouseY) {
 
 void Menu::AddButton(const std::string& text, float x, float y, float w, float h, std::function<void()> onClick, const std::string& audioPath) {
     ALuint buffer = 0;
-    if (!audioPath.empty()) {
-        audioManager.LoadSound(audioPath, buffer);
+    if (!audioPath.empty() && audioManager) {
+        audioManager->LoadSound(audioPath, buffer);
     }
     buttons.push_back({text, x, y, w, h, false, false, 1.0f, onClick, buffer});
 }
 
+void Menu::SetAudioManager(AudioManager* am) {
+    audioManager = am;
+}
+
+void Menu::PlaySound(ALuint buffer) {
+    if (audioManager) audioManager->PlaySound(buffer);
+}
+
 void Menu::StartAmbient() {
-    if (ambientBuffer != 0) {
-        audioManager.PlayAmbient(ambientBuffer);
+    if (ambientBuffer != 0 && audioManager) {
+        audioManager->PlayAmbient(ambientBuffer);
     }
 }
 
 void Menu::StopAmbient() {
-    audioManager.StopAmbient();
+    if (audioManager) audioManager->StopAmbient();
 }
 

@@ -5,7 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <utility> // For std::pair
+#include <utility>
 #include <thread>
 #include <chrono>
 #include <glm/glm.hpp>
@@ -21,9 +21,11 @@ static std::string ReadFile(const std::string& path) {
         std::cerr << "ERROR::SHADER::FILE_NOT_FOUND: " << path << std::endl;
         return "";
     }
+    
+    
     std::stringstream stream;
     stream << file.rdbuf();
-    file.close();
+    file.close();   
     return stream.str();
 }
 
@@ -58,30 +60,31 @@ Game::Game(int w, int h)
         this->gameStartTimer = 4.0f;
         this->animStateStartTime = glfwGetTime();
         this->lastAnimState = Player::AnimState::Dance;
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-    }, "assets/audio/Menu/Voicy_Obtain.wav");
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        this->audioManager.PlayAmbient(this->gameAmbientBuffer);
+    }, "assets/audio/Menu/Buttoms.wav");
 
     // Botón 2: Change Characters (Y: 675)
     menu->AddButton("Change Characters", fixedX, 690, targetButtonWidth, targetButtonHeight, [this](){ 
         this->focusedSlot = 0;
         this->charSelectTime = 0.0f;
         this->currentState = GameState::CHARACTER_SELECT;
-    }, "assets/audio/Menu/Voicy_Obtain.wav");
+    }, "assets/audio/Menu/Buttoms.wav");
 
     // Botón 3: Help (Y: 730)
     menu->AddButton("Help", fixedX, 775, targetButtonWidth, targetButtonHeight, [this](){
         this->currentState = GameState::HELP;
-    }, "assets/audio/Menu/Voicy_Obtain.wav");
+    }, "assets/audio/Menu/Buttoms.wav");
 
     // Botón 4: Credits (Y: 785)
     menu->AddButton("Credits", fixedX, 840, targetButtonWidth, targetButtonHeight, [](){ 
         std::cout << "Credits\n"; 
-    }, "assets/audio/Menu/Voicy_Obtain.wav");
+    }, "assets/audio/Menu/Buttoms.wav");
 
     // Botón 5: Exit (Y: 840)
     menu->AddButton("Exit", fixedX, 900, targetButtonWidth, targetButtonHeight, [this](){
         glfwSetWindowShouldClose(this->window, true);
-    }, "assets/audio/Menu/Voicy_Obtain.wav");
+    }, "assets/audio/Menu/Buttoms.wav");
 
     // Configurar botones de Game Over (uno al lado del otro, más abajo)
     float gameOverY = 700.0f;
@@ -90,27 +93,31 @@ Game::Game(int w, int h)
         this->ResetRun();
         this->currentState = GameState::PLAYING;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    }, "assets/audio/Menu/Voicy_Obtain.wav");
+        this->audioManager.PlayAmbient(this->gameAmbientBuffer);
+    }, "assets/audio/Menu/Buttoms.wav");
     gameOverMenu->AddButton("Back to Menu", (float)width / 2.0f + btnGap + 400.0f, gameOverY, 300, 100, [this](){
         this->currentState = GameState::MENU;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-    }, "assets/audio/Menu/Voicy_Obtain.wav");
+        this->audioManager.StopAmbient();
+    }, "assets/audio/Menu/Buttoms.wav");
 
     // Configurar botones de Pausa
     float pauseY = (float)height / 2.0f;
     pauseMenu->AddButton("Resume", (float)width / 2.0f, pauseY - 100.0f, 300, 100, [this](){
         this->currentState = GameState::PLAYING;
         glfwSetInputMode(this->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    }, "assets/audio/Menu/Voicy_Obtain.wav");
+        this->audioManager.PlayAmbient(this->gameAmbientBuffer);
+    }, "assets/audio/Menu/Buttoms.wav");
     pauseMenu->AddButton("Back to Menu", (float)width / 2.0f, pauseY + 50.0f, 300, 100, [this](){
         this->currentState = GameState::MENU;
         glfwSetInputMode(this->window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-    }, "assets/audio/Menu/Voicy_Obtain.wav");
+        this->audioManager.StopAmbient();
+    }, "assets/audio/Menu/Buttoms.wav");
 
     // Configurar boton de Ayuda
-    helpMenu->AddButton("Back", ((float)width / 2.0f) + 567.0f, (float)height + 300.0f, 300, 100, [this](){
+    helpMenu->AddButton("Back", (float)width / 2.0f + 567.0f, (float)height / 2.0f + 610.0f, 300, 100, [this](){
         this->currentState = GameState::MENU;
-    }, "assets/audio/Menu/Voicy_Obtain.wav");
+    }, "assets/audio/Menu/Buttoms.wav");
     
     ResetRun();
 }
@@ -132,6 +139,8 @@ Game::~Game() {
     delete pauseMenu;
     delete helpMenu;
     delete helpMenuKeys;
+    if (gameAmbientBuffer != 0) alDeleteBuffers(1, &gameAmbientBuffer);
+    if (characterSelectAmbientBuffer != 0) alDeleteBuffers(1, &characterSelectAmbientBuffer);
     glfwTerminate();
 }
 
@@ -149,10 +158,15 @@ bool Game::Init() {
     
     // Inicializar menú
     // Inicializar menú
-    menu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Menu/FondoMenu.png");
-    gameOverMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Menu/FondoMenu.png");
-    pauseMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Menu/FondoMenu.png");
-    helpMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Menu/FondoMenu.png");
+    menu->SetAudioManager(&audioManager);
+    gameOverMenu->SetAudioManager(&audioManager);
+    pauseMenu->SetAudioManager(&audioManager);
+    helpMenu->SetAudioManager(&audioManager);
+    helpMenuKeys->SetAudioManager(&audioManager);
+    menu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Menu/FondoMenu.png");
+    gameOverMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Menu/FondoMenu.png");
+    pauseMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Menu/FondoMenu.png");
+    helpMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Menu/FondoMenu.png");
     helpMenuKeys->Init("assets/fonts/DirtyWar.otf", "assets/textures/Menu/FondoMenu.png");
     
     // Pre-cargar imágenes para evitar lag al renderizar
@@ -251,6 +265,17 @@ bool Game::Init() {
 
     // Cargar modelo de moneda
     coinModel = new Model("assets/scene/coin.glb");
+    if (!audioManager.LoadSound("assets/audio/Menu/GameTheme.wav", gameAmbientBuffer)) {
+        std::cerr << "ERROR CARGANDO GameTheme.wav" << std::endl;
+    } else {
+        std::cout << "GameTheme.wav cargado correctamente, buffer = " << gameAmbientBuffer << std::endl;
+    }
+    audioManager.LoadSound("assets/audio/Menu/Character-Select.wav", characterSelectAmbientBuffer);
+    if (characterSelectAmbientBuffer == 0) {
+        std::cerr << "ERROR CARGANDO Character-Select.wav" << std::endl;
+    } else {
+        std::cout << "Character-Select.wav cargado, buffer = " << characterSelectAmbientBuffer << std::endl;
+    }
 
     // Cargar modelo del skybox
     skyboxModel = new Model("assets/models/skybox/skyboxGalax.glb");
@@ -396,9 +421,11 @@ void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, in
             } else if (instance->currentState == GameState::PLAYING) {
                 instance->currentState = GameState::PAUSED;
                 glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+                instance->audioManager.StopAmbient();
             } else if (instance->currentState == GameState::PAUSED) {
                 instance->currentState = GameState::PLAYING;
                 glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+                instance->audioManager.PlayAmbient(instance->gameAmbientBuffer);
             } else if (instance->currentState == GameState::HELP) {
                 instance->currentState = GameState::MENU;
             }
@@ -411,21 +438,27 @@ void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, in
             if (key == GLFW_KEY_RIGHT || key == GLFW_KEY_D) {
                 if (instance->focusedSlot < numChars) {
                     instance->focusedSlot = (instance->focusedSlot + 1) % numChars;
+                    instance->menu->PlaySound(instance->menu->GetHoverSoundBuffer());
                 }
             } else if (key == GLFW_KEY_LEFT || key == GLFW_KEY_A) {
                 if (instance->focusedSlot < numChars) {
                     instance->focusedSlot = (instance->focusedSlot - 1 + numChars) % numChars;
+                    instance->menu->PlaySound(instance->menu->GetHoverSoundBuffer());
                 }
             } else if (key == GLFW_KEY_DOWN || key == GLFW_KEY_S) {
                 instance->focusedSlot = numChars; // Back button
+                instance->menu->PlaySound(instance->menu->GetHoverSoundBuffer());
             } else if (key == GLFW_KEY_UP || key == GLFW_KEY_W) {
                 if (instance->focusedSlot == numChars) {
                     instance->focusedSlot = 0;
+                    instance->menu->PlaySound(instance->menu->GetHoverSoundBuffer());
                 }
             } else if (key == GLFW_KEY_ENTER) {
                 if (instance->focusedSlot == numChars) {
                     instance->currentState = GameState::MENU;
+                    instance->menu->PlaySound(instance->menu->GetHoverSoundBuffer());
                 } else if (instance->focusedSlot < numChars) {
+                    instance->menu->PlaySound(instance->menu->GetHoverSoundBuffer());
                     if (instance->characterUnlocked[instance->focusedSlot]) {
                         instance->selectedModelIndex = instance->focusedSlot;
                         instance->playerModel = instance->characters[instance->focusedSlot].model;
@@ -543,6 +576,7 @@ void Game::MouseButtonCallback(GLFWwindow* window, int button, int action, int m
                     instance->totalCoins -= 100;
                     instance->SaveProgress();
                 }
+                instance->menu->PlaySound(instance->menu->GetHoverSoundBuffer());
                 return;
             }
         }
@@ -554,6 +588,7 @@ void Game::MouseButtonCallback(GLFWwindow* window, int button, int action, int m
         if (xpos >= backX - halfW && xpos <= backX + halfW &&
             ypos >= backY - halfH && ypos <= backY + halfH) {
             instance->currentState = GameState::MENU;
+            instance->menu->PlaySound(instance->menu->GetHoverSoundBuffer());
             return;
         }
     } else if (instance->currentState == GameState::MENU) {
@@ -606,9 +641,16 @@ void Game::Update(float deltaTime) {
         if (currentState == GameState::MENU) {
             ResetRun();
             menu->StartAmbient();
-        } else if (prevState == GameState::MENU) {
+        } else if (prevState == GameState::MENU && currentState != GameState::PLAYING) {
             menu->StopAmbient();
         }
+
+        if (currentState == GameState::CHARACTER_SELECT) {
+            audioManager.PlayAmbient(characterSelectAmbientBuffer);
+        } else if (prevState == GameState::CHARACTER_SELECT && currentState != GameState::MENU) {
+            audioManager.StopAmbient();
+        }
+
         prevState = currentState;
     }
 
@@ -663,6 +705,8 @@ void Game::Update(float deltaTime) {
             currentState = GameState::GAME_OVER;
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
             SaveProgress();
+            audioManager.StopAmbient();
+            gameOverMenu->SelectFirstButton();
         }
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
@@ -780,6 +824,9 @@ void Game::Render() {
         menu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, true);
         menu->RenderImage("assets/textures/Menu/NO-TURNING-BACK.png", fbWidth * 0.5f, fbHeight * 0.25f, fbWidth * 0.8f, fbHeight * 0.30f, fbWidth, fbHeight);
 
+          menu->RenderSelectionCursor("assets/textures/Menu/Hand.png", 100.0f, 150.0f, 100.0f, fbWidth, fbHeight);
+
+
         glfwSwapBuffers(window);
         return;
     }
@@ -794,8 +841,10 @@ void Game::Render() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         helpMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, true);
-        helpMenu->RenderImage("assets/textures/Menu/wasd.png", fbWidth / 2.0f, fbHeight / 2.0f + 200.0f, 400.0f, 400.0f, fbWidth, fbHeight);
+        helpMenu->RenderImage("assets/textures/Menu/wasd.png", fbWidth / 2.0f, fbHeight / 2.0f + 150.0f, 400.0f, 400.0f, fbWidth, fbHeight);
         helpMenu->RenderImage("assets/textures/Menu/simbol1.png", fbWidth / 2.0f - 500.0f, fbHeight / 2.0f - 250.0f, 500.0f, 300.0f, fbWidth, fbHeight);
+        helpMenu->RenderImage("assets/textures/Menu/Hand.png", fbWidth * 0.75f, fbHeight / 2.0f, 500.0f, 500.0f, fbWidth, fbHeight);
+        helpMenu->RenderSelectionCursor("assets/textures/Menu/Hand.png", 100.0f, 150.0f, 100.0f, fbWidth, fbHeight);
 
         glfwSwapBuffers(window);
         return;
@@ -804,11 +853,24 @@ void Game::Render() {
     if (currentState == GameState::GAME_OVER) {
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+
+        glViewport(0, 0, fbWidth, fbHeight);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        std::string charName = characters[selectedModelIndex].name;
+        if (charName == "Thug") {
+            gameOverMenu->RenderImage("assets/textures/Menu/sahurfail.png", fbWidth / 2.0f, fbHeight / 2.0f, (float)fbWidth, (float)fbHeight, fbWidth, fbHeight);
+        } else if (charName == "Alien") {
+            gameOverMenu->RenderImage("assets/textures/Menu/alien.png", fbWidth / 2.0f, fbHeight / 2.0f, (float)fbWidth, (float)fbHeight, fbWidth, fbHeight);
+        }
+
         gameOverMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, false);
         
         // Dibujar texto "Perdiste"
         gameOverMenu->RenderText("Game Over", fbWidth / 2.0f, fbHeight / 2.0f - 100.0f, 1.5f, glm::vec3(1.0f, 0.0f, 0.0f), fbWidth, fbHeight);
-        
+        gameOverMenu->RenderSelectionCursor("assets/textures/Menu/Hand.png", 100.0f, 150.0f, 100.0f, fbWidth, fbHeight);
+
         glfwSwapBuffers(window);
         return;
     }
@@ -818,6 +880,7 @@ void Game::Render() {
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
         pauseMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, false);
+        pauseMenu->RenderSelectionCursor("assets/textures/Menu/Hand.png", 100.0f, 150.0f, 100.0f, fbWidth, fbHeight);
         glfwSwapBuffers(window);
         return;
     }
@@ -1138,6 +1201,10 @@ void Game::RenderCharacterSelect() {
     glClearColor(0.05f, 0.05f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    glDisable(GL_DEPTH_TEST);
+    menu->RenderImage("assets/textures/Menu/fondoSelect.png", (float)fbWidth / 2.0f, (float)fbHeight / 2.0f, (float)fbWidth, (float)fbHeight, fbWidth, fbHeight);
+    glEnable(GL_DEPTH_TEST);
+
     float aspect = (float)fbWidth / (float)fbHeight;
     glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
     glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 1.2f, 4.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -1188,7 +1255,7 @@ void Game::RenderCharacterSelect() {
         float posX = startX + i * spacing;
 
         glm::mat4 modelMat = glm::mat4(1.0f);
-        modelMat = glm::translate(modelMat, glm::vec3(posX, 0.0f, 0.0f));
+        modelMat = glm::translate(modelMat, glm::vec3(posX, -0.4f, 0.0f));
         modelMat = glm::translate(modelMat, glm::vec3(0.0f, -meshAABB.min.y * previewScale, 0.0f));
 
         if (isFocused) {
@@ -1235,6 +1302,13 @@ void Game::RenderCharacterSelect() {
         bool isFocused = (focusedSlot == i && focusedSlot < numChars);
         glm::vec3 nameColor = isFocused ? glm::vec3(1.0f, 0.8f, 0.2f) : glm::vec3(0.8f, 0.8f, 0.8f);
         menu->RenderText(characters[i].name, screenX, screenY + 30.0f, 0.7f, nameColor, fbWidth, fbHeight);
+        if (isFocused) {
+            float nameWidth = menu->GetTextWidth(characters[i].name, 0.7f);
+            float cursorMargin = 80.0f;
+            float cursorWidth = 180.0f;
+            float cursorHeight = 120.0f;
+            menu->RenderImage("assets/textures/Menu/Hand.png", screenX + nameWidth / 2.0f + cursorMargin, screenY + 30.0f, cursorWidth, cursorHeight, fbWidth, fbHeight);
+        }
 
         if (characterUnlocked[i]) {
             glm::vec3 statusColor = isFocused ? glm::vec3(0.2f, 1.0f, 0.2f) : glm::vec3(0.6f, 0.6f, 0.6f);
@@ -1251,6 +1325,10 @@ void Game::RenderCharacterSelect() {
         bool isBackFocused = (focusedSlot == numChars);
         glm::vec3 backColor = isBackFocused ? glm::vec3(1.0f, 0.0f, 0.0f) : glm::vec3(1.0f, 1.0f, 1.0f);
         menu->RenderText("Back", (float)fbWidth / 2.0f, (float)fbHeight * 0.85f, charSelectBackScale, backColor, fbWidth, fbHeight);
+        if (isBackFocused) {
+            float backWidth = menu->GetTextWidth("Back", charSelectBackScale);
+            menu->RenderImage("assets/textures/Menu/Hand.png", (float)fbWidth / 2.0f + backWidth / 2.0f + 100.0f, (float)fbHeight * 0.85f, 150.0f, 100.0f, fbWidth, fbHeight);
+        }
     }
 
     glEnable(GL_DEPTH_TEST);

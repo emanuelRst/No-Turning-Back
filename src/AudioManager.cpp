@@ -73,6 +73,11 @@ void AudioManager::PlaySound(ALuint buffer) {
 }
 
 void AudioManager::PlayAmbient(ALuint buffer) {
+    if (buffer == 0) {
+        std::cerr << "ERROR: buffer 0 en PlayAmbient" << std::endl;
+        return;
+    }
+    ALenum bufErr = alGetError(); // Clear any previous error
     if (ambientSource != 0) {
         alSourceStop(ambientSource);
         alDeleteSources(1, &ambientSource);
@@ -81,6 +86,12 @@ void AudioManager::PlayAmbient(ALuint buffer) {
     alSourcei(ambientSource, AL_BUFFER, buffer);
     alSourcei(ambientSource, AL_LOOPING, AL_TRUE);
     alSourcePlay(ambientSource);
+    ALenum err = alGetError();
+    if (err != AL_NO_ERROR) {
+        std::cerr << "OpenAL error after PlayAmbient: " << err << std::endl;
+    } else {
+        std::cout << "PlayAmbient iniciado correctamente" << std::endl;
+    }
 }
 
 void AudioManager::StopAmbient() {
