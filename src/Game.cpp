@@ -157,10 +157,10 @@ bool Game::Init() {
     pauseMenu->SetAudioManager(&audioManager);
     helpMenu->SetAudioManager(&audioManager);
     helpMenuKeys->SetAudioManager(&audioManager);
-    menu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Menu/FondoMenu.png");
-    gameOverMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Menu/FondoMenu.png");
-    pauseMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Menu/FondoMenu.png");
-    helpMenu->Init("assets/fonts/gunmetl.ttf", "assets/textures/Menu/FondoMenu.png");
+    menu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Menu/FondoMenu.png");
+    gameOverMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Menu/FondoMenu.png");
+    pauseMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Menu/FondoMenu.png");
+    helpMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Menu/FondoMenu.png");
     helpMenuKeys->Init("assets/fonts/DirtyWar.otf", "assets/textures/Menu/FondoMenu.png");
     
     // Pre-cargar imágenes para evitar lag al renderizar
