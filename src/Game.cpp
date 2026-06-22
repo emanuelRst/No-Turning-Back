@@ -53,8 +53,8 @@ Game::Game(int w, int h)
     int targetButtonHeight = 20;
     int fixedX = 953;
 
-    // Botón 1: Start Game (Y: 620)
-    menu->AddButton("Start Game", fixedX, 625, targetButtonWidth, targetButtonHeight, [this](){ 
+    // Botón 1: Start Game 
+    menu->AddButton("Start Game", fixedX, 570, targetButtonWidth, targetButtonHeight, [this](){ 
         this->ResetRun();
         this->currentState = GameState::PLAYING;
         this->gameStartTimer = 4.0f;
@@ -64,19 +64,19 @@ Game::Game(int w, int h)
         this->audioManager.PlayAmbient(this->gameAmbientBuffer);
     }, "assets/audio/Menu/Buttoms.wav");
 
-    // Botón 2: Change Characters (Y: 675)
-    menu->AddButton("Change Characters", fixedX, 690, targetButtonWidth, targetButtonHeight, [this](){ 
+    // Botón 2: Change Characters 
+    menu->AddButton("Change Characters", fixedX, 655, targetButtonWidth, targetButtonHeight, [this](){ 
         this->focusedSlot = 0;
         this->charSelectTime = 0.0f;
         this->currentState = GameState::CHARACTER_SELECT;
     }, "assets/audio/Menu/Buttoms.wav");
 
-    // Botón 3: Help (Y: 730)
-    menu->AddButton("Help", fixedX, 775, targetButtonWidth, targetButtonHeight, [this](){
+    // Botón 3: Help 
+    menu->AddButton("Help", fixedX, 758, targetButtonWidth, targetButtonHeight, [this](){
         this->currentState = GameState::HELP;
     }, "assets/audio/Menu/Buttoms.wav");
 
-    // Botón 4: Credits (Y: 785)
+    // Botón 4: Credits 
     menu->AddButton("Credits", fixedX, 840, targetButtonWidth, targetButtonHeight, [this](){ 
         this->currentState = GameState::CREDITS;
         int fbW, fbH;
@@ -84,8 +84,8 @@ Game::Game(int w, int h)
         this->creditsScroll = 0.0f;
     }, "assets/audio/Menu/Buttoms.wav");
 
-    // Botón 5: Exit (Y: 840)
-    menu->AddButton("Exit", fixedX, 900, targetButtonWidth, targetButtonHeight, [this](){
+    // Botón 5: Exit 
+    menu->AddButton("Exit", fixedX, 920, targetButtonWidth, targetButtonHeight, [this](){
         glfwSetWindowShouldClose(this->window, true);
     }, "assets/audio/Menu/Buttoms.wav");
 
