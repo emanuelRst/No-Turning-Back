@@ -488,6 +488,7 @@ void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, in
                         if (loadedMeshAABB.min.x < loadedMeshAABB.max.x && loadedMeshAABB.min.y < loadedMeshAABB.max.y) {
                             instance->player.SetHitboxFromModelAABB(loadedMeshAABB);
                         }
+                        instance->SaveProgress();
                         instance->currentState = GameState::MENU;
                     } else if (instance->totalCoins >= 100) {
                         instance->characterUnlocked[instance->focusedSlot] = true;
@@ -597,6 +598,7 @@ void Game::MouseButtonCallback(GLFWwindow* window, int button, int action, int m
                     if (loadedMeshAABB.min.x < loadedMeshAABB.max.x && loadedMeshAABB.min.y < loadedMeshAABB.max.y) {
                         instance->player.SetHitboxFromModelAABB(loadedMeshAABB);
                     }
+                    instance->SaveProgress();
                     instance->currentState = GameState::MENU;
                 } else if (instance->totalCoins >= 100) {
                     instance->characterUnlocked[i] = true;
@@ -1005,10 +1007,10 @@ void Game::Render() {
 
         // Mostrar score y récord
         int scoreInt = (int)score;
-        gameOverMenu->RenderText("Score: " + std::to_string(scoreInt), fbWidth / 2.0f, fbHeight / 2.0f - 120.0f, 0.9f, glm::vec3(1.0f, 1.0f, 1.0f), fbWidth, fbHeight);
+        gameOverMenu->RenderText("Score: " + std::to_string(scoreInt), fbWidth / 2.0f, fbHeight / 2.0f - 120.0f, 0.9f, glm::vec3(1.0f, 0.0f, 0.0f), fbWidth, fbHeight);
         gameOverMenu->RenderText("Best score: " + std::to_string(highScores[selectedModelIndex]), fbWidth / 2.0f, fbHeight / 2.0f - 30.0f, 0.7f, glm::vec3(1.0f, 0.85f, 0.2f), fbWidth, fbHeight);
         if (isNewHighScore) {
-            gameOverMenu->RenderText("New Record!", fbWidth / 2.0f, fbHeight / 2.0f + 55.0f, 0.8f, glm::vec3(1.0f, 0.85f, 0.2f), fbWidth, fbHeight);
+            gameOverMenu->RenderText("New Record!", fbWidth / 2.0f, fbHeight / 2.0f + 55.0f, 0.8f, glm::vec3(0.0f, 1.0f, 0.0f), fbWidth, fbHeight);
         }
 
         gameOverMenu->RenderSelectionCursor("assets/textures/Menu/Hand.png", 100.0f, 150.0f, 100.0f, fbWidth, fbHeight);
@@ -1453,8 +1455,10 @@ void Game::RenderCharacterSelect() {
         }
 
         if (characterUnlocked[i]) {
-            glm::vec3 statusColor = isFocused ? glm::vec3(0.2f, 1.0f, 0.2f) : glm::vec3(0.6f, 0.6f, 0.6f);
-            menu->RenderText("SELECT", screenX, screenY + 65.0f, 0.5f, statusColor, fbWidth, fbHeight);
+            bool isSelected = (i == selectedModelIndex);
+            std::string statusText = isSelected ? "Selected" : "Select";
+            glm::vec3 statusColor = isSelected ? glm::vec3(0.2f, 1.0f, 0.2f) : glm::vec3(0.6f, 0.6f, 0.6f);
+            menu->RenderText(statusText, screenX, screenY + 65.0f, 0.5f, statusColor, fbWidth, fbHeight);
         } else {
             bool canAfford = (totalCoins >= 100);
             glm::vec3 priceColor = canAfford ? glm::vec3(1.0f, 0.85f, 0.2f) : glm::vec3(1.0f, 0.3f, 0.3f);
