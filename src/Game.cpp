@@ -81,7 +81,7 @@ Game::Game(int w, int h)
         this->currentState = GameState::CREDITS;
         int fbW, fbH;
         glfwGetFramebufferSize(this->window, &fbW, &fbH);
-        this->creditsScroll = (float)fbH * 0.7f;
+        this->creditsScroll = 0.0f;
     }, "assets/audio/Menu/Buttoms.wav");
 
     // Botón 5: Exit (Y: 840)
