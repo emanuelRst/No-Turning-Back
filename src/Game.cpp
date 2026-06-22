@@ -195,7 +195,7 @@ bool Game::Init() {
 
     // Cargar modelos de personajes seleccionables
     // characters es dueño de los modelos; playerModel solo apunta al actual
-    characters.push_back({"TungTung", "assets/models/thug/tung.glb", new Model("assets/models/thug/tung.glb")});
+    characters.push_back({"TungTung", "assets/models/tung/tung.glb", new Model("assets/models/tung/tung.glb")});
     characters.push_back({"Alien", "assets/models/alien/alien.glb", new Model("assets/models/alien/alien.glb")});
     characters.push_back({"Teto", "assets/models/Teto/Teto.glb", new Model("assets/models/Teto/Teto.glb")});
     characterUnlocked.assign(characters.size(), false);
