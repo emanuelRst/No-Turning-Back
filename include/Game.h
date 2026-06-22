@@ -116,6 +116,8 @@ private:
     int totalCoins = 0;
     float score = 0.0f;
     std::vector<bool> characterUnlocked;
+    std::vector<int> highScores;
+    bool isNewHighScore = false;
 
     std::vector<CharacterOption> characters;
     int focusedSlot = 0;

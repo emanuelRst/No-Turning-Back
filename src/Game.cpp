@@ -200,6 +200,7 @@ bool Game::Init() {
     characters.push_back({"Teto", "assets/models/Teto/Teto.glb", new Model("assets/models/Teto/Teto.glb")});
     characterUnlocked.assign(characters.size(), false);
     characterUnlocked[0] = true; // Thug siempre desbloqueado
+    highScores.assign(characters.size(), 0);
     LoadProgress();
     playerModel = characters[selectedModelIndex].model;
 
@@ -751,6 +752,11 @@ void Game::Update(float deltaTime) {
         if (currentState != GameState::GAME_OVER) {
             currentState = GameState::GAME_OVER;
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            int scoreInt = (int)score;
+            isNewHighScore = scoreInt > highScores[selectedModelIndex];
+            if (isNewHighScore) {
+                highScores[selectedModelIndex] = scoreInt;
+            }
             SaveProgress();
             audioManager.StopAmbient();
             audioManager.PlaySound(gameOverSoundBuffer);
@@ -808,6 +814,7 @@ void Game::ResetRun() {
     groundScroll = 0.0f;
     runCoins = 0;
     score = 0.0f;
+    isNewHighScore = false;
 
     const float playerZ = player.GetPosition().z;
     levelGen.Reset(playerZ);
@@ -939,25 +946,27 @@ void Game::Render() {
             glm::vec3 white(1.0f, 1.0f, 1.0f);
             float s = 1.40f;
 
-            creditsMenu->RenderText("3D Modeling and Animation", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
-            y -= 50.0f * s;
-            creditsMenu->RenderText("Mendoza Blandon Wilfredo Francisco (2024 1901U)", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
-            y -= 100.0f * s;
+            y -= 300.0f * s;
 
-            creditsMenu->RenderText("Menu design with effects and audio manager", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
-            y -= 50.0f * s;
-            creditsMenu->RenderText("Tinoco Davila Diana Esther (2024 1863U)", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
-            y -= 150.0f * s;
+            creditsMenu->RenderText("3D Modeling and Animation", fbW / 2.0f, y, 0.6f * s, white, fbW, fbH);
+            y -= 60.0f * s;
+            creditsMenu->RenderText("Mendoza Blandon Wilfredo Francisco (2024 1901U)", fbW / 2.0f, y, 0.6f * s, white, fbW, fbH);
+            y -= 120.0f * s;
 
-            creditsMenu->RenderText("Mechanics Programming and Backend", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
-            y -= 50.0f * s;
-            creditsMenu->RenderText("Gonzalez Rostran German Emanuel (2024 1942U)", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
-            y -= 200.0f * s;
+            creditsMenu->RenderText("Menu design with effects and audio manager", fbW / 2.0f, y, 0.6f * s, white, fbW, fbH);
+            y -= 60.0f * s;
+            creditsMenu->RenderText("Tinoco Davila Diana Esther (2024 1863U)", fbW / 2.0f, y, 0.6f * s, white, fbW, fbH);
+            y -= 120.0f * s;
 
-            creditsMenu->RenderText("Universidad Nacional de Ingenieria ( UNI )", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
-            y -= 55.0f * s;
-            creditsMenu->RenderText("Students of the Computer Engineering Program", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
-            y -= 250.0f * s;
+            creditsMenu->RenderText("Mechanics Programming and Backend", fbW / 2.0f, y, 0.6f * s, white, fbW, fbH);
+            y -= 60.0f * s;
+            creditsMenu->RenderText("Gonzalez Rostran German Emanuel (2024 1942U)", fbW / 2.0f, y, 0.6f * s, white, fbW, fbH);
+            y -= 120.0f * s;
+
+            creditsMenu->RenderText("National University of Engineering ( UNI )", fbW / 2.0f, y, 0.6f * s, white, fbW, fbH);
+            y -= 60.0f * s;
+            creditsMenu->RenderText("Students of the Computer Engineering Program", fbW / 2.0f, y, 0.6f * s, white, fbW, fbH);
+            y -= 120.0f * s;
 
             creditsMenu->RenderText("Credits", fbW / 2.0f, y, 0.9f * s, white, fbW, fbH);
             y -= 300.0f * s;
@@ -993,6 +1002,15 @@ void Game::Render() {
         
         // Dibujar texto "Perdiste"
         gameOverMenu->RenderText("Game Over", fbWidth / 2.0f, fbHeight / 2.0f - 230.0f, 1.5f, glm::vec3(1.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+
+        // Mostrar score y récord
+        int scoreInt = (int)score;
+        gameOverMenu->RenderText("Score: " + std::to_string(scoreInt), fbWidth / 2.0f, fbHeight / 2.0f - 180.0f, 0.9f, glm::vec3(1.0f, 1.0f, 1.0f), fbWidth, fbHeight);
+        gameOverMenu->RenderText("Best: " + std::to_string(highScores[selectedModelIndex]), fbWidth / 2.0f, fbHeight / 2.0f - 150.0f, 0.7f, glm::vec3(1.0f, 0.85f, 0.2f), fbWidth, fbHeight);
+        if (isNewHighScore) {
+            gameOverMenu->RenderText("New Record!", fbWidth / 2.0f, fbHeight / 2.0f - 115.0f, 0.8f, glm::vec3(1.0f, 0.85f, 0.2f), fbWidth, fbHeight);
+        }
+
         gameOverMenu->RenderSelectionCursor("assets/textures/Menu/Hand.png", 100.0f, 150.0f, 100.0f, fbWidth, fbHeight);
 
         glfwSwapBuffers(window);
@@ -1467,6 +1485,7 @@ void Game::RenderHUD() {
     int scoreInt = (int)score;
     menu->RenderText("Coins: " + std::to_string(runCoins), 70.0f, 20.0f, 0.6f, glm::vec3(1.0f, 0.85f, 0.2f), fbWidth, fbHeight);
     menu->RenderText("Score: " + std::to_string(scoreInt), 70.0f, 65.0f, 0.6f, glm::vec3(1.0f, 1.0f, 1.0f), fbWidth, fbHeight);
+    menu->RenderText("Best: " + std::to_string(highScores[selectedModelIndex]), 70.0f, 100.0f, 0.5f, glm::vec3(1.0f, 0.85f, 0.2f), fbWidth, fbHeight);
 }
 
 void Game::SaveProgress() {
@@ -1475,6 +1494,9 @@ void Game::SaveProgress() {
     j["selectedModelIndex"] = selectedModelIndex;
     for (size_t i = 0; i < characterUnlocked.size(); ++i) {
         j["unlocked"][i] = characterUnlocked[i];
+    }
+    for (size_t i = 0; i < highScores.size(); ++i) {
+        j["highScores"][i] = highScores[i];
     }
     std::ofstream file("save.json");
     if (file.is_open()) {
@@ -1498,6 +1520,11 @@ void Game::LoadProgress() {
         if (j.contains("unlocked")) {
             for (size_t i = 0; i < j["unlocked"].size() && i < characterUnlocked.size(); ++i) {
                 characterUnlocked[i] = j["unlocked"][i];
+            }
+        }
+        if (j.contains("highScores")) {
+            for (size_t i = 0; i < j["highScores"].size() && i < highScores.size(); ++i) {
+                highScores[i] = j["highScores"][i];
             }
         }
     } catch (...) {}
