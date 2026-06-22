@@ -51,6 +51,7 @@ public:
     void GetTextVerticalBounds(const std::string& text, float scale, float& minBearingY, float& maxBearingY);
     void SetBackground(const std::string& bgPath);
     void SetBackgroundShader(const std::string& fragPath);
+    void SetFont(const std::string& fontPath, float fontSize);
     void PlaySound(ALuint buffer);
     ALuint GetHoverSoundBuffer() const { return sharedHoverSoundBuffer; }
     void SetAudioManager(AudioManager* am);

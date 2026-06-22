@@ -168,6 +168,7 @@ bool Game::Init() {
     gameOverMenu->SetBackgroundShader("assets/shaders/background_fog.frag");
     pauseMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
     helpMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
+    helpMenu->SetBackgroundShader("assets/shaders/background_plain.frag");
     helpMenuKeys->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
     
     // Pre-cargar imágenes para evitar lag al renderizar
@@ -856,7 +857,23 @@ void Game::Render() {
 
         helpMenu->RenderImage("assets/textures/Menu/Hand.png", fbWidth * 0.80f, fbHeight / 4.0f, 300.0f, 180.0f, fbWidth, fbHeight);
 
-        helpMenu->RenderImage("assets/textures/Menu/metalplate.png", fbWidth * 0.460f, fbHeight / 4.0f, 650.0f, 350.0f, fbWidth, fbHeight);
+        helpMenu->RenderImage("assets/textures/Menu/metalplate.png", fbWidth * 0.480f, fbHeight / 4.0f, 700.0f, 350.0f, fbWidth, fbHeight);
+
+        glDisable(GL_DEPTH_TEST);
+        helpMenu->SetFont("assets/fonts/soldier.ttf", 64.0f);
+        {
+            float cx = fbWidth * 0.480f;
+            float cy = fbHeight / 4.0f;
+            float s = 0.51f;
+            helpMenu->RenderText("Usa las teclas W, A, S, D para navegar", cx, cy - 95.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+            helpMenu->RenderText("por este mundo desolado:", cx, cy - 70.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+            helpMenu->RenderText("W: Saltar / Subir", cx, cy - 30.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+            helpMenu->RenderText("A: Mover a la izquierda", cx, cy + 0.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+            helpMenu->RenderText("S: Agacharse / Bajar", cx, cy + 30.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+            helpMenu->RenderText("D: Mover a la derecha", cx, cy + 60.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+        }
+        helpMenu->SetFont("assets/fonts/DirtyWar.otf", 64.0f);
+        glEnable(GL_DEPTH_TEST);
 
         helpMenu->RenderSelectionCursor("assets/textures/Menu/Hand.png", 100.0f, 150.0f, 100.0f, fbWidth, fbHeight);
 

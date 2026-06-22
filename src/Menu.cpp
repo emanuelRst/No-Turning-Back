@@ -574,6 +574,42 @@ void Menu::SetAudioManager(AudioManager* am) {
     audioManager = am;
 }
 
+void Menu::SetFont(const std::string& fontPath, float fontSize) {
+    Characters.clear();
+    if (atlasTexture != 0) glDeleteTextures(1, &atlasTexture);
+
+    std::ifstream fontFile(fontPath, std::ios::binary);
+    if (!fontFile.is_open()) {
+        std::cerr << "Failed to load font: " << fontPath << std::endl;
+        return;
+    }
+    std::vector<unsigned char> fontBuffer((std::istreambuf_iterator<char>(fontFile)), std::istreambuf_iterator<char>());
+
+    unsigned char atlasData[512 * 512];
+    stbtt_bakedchar cdata[96];
+    stbtt_BakeFontBitmap(fontBuffer.data(), 0, fontSize, atlasData, 512, 512, 32, 96, cdata);
+
+    glGenTextures(1, &atlasTexture);
+    glBindTexture(GL_TEXTURE_2D, atlasTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, 512, 512, 0, GL_RED, GL_UNSIGNED_BYTE, atlasData);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    for (int i = 0; i < 96; i++) {
+        Character ch = {
+            atlasTexture,
+            glm::ivec2(cdata[i].x1 - cdata[i].x0, cdata[i].y1 - cdata[i].y0),
+            glm::ivec2(cdata[i].xoff, cdata[i].yoff),
+            (unsigned int)cdata[i].xadvance,
+            cdata[i].x0 / 512.0f, cdata[i].y0 / 512.0f,
+            cdata[i].x1 / 512.0f, cdata[i].y1 / 512.0f
+        };
+        Characters.insert(std::pair<char, Character>(32 + i, ch));
+    }
+}
+
 void Menu::PlaySound(ALuint buffer) {
     if (audioManager) audioManager->PlaySound(buffer);
 }
