@@ -22,7 +22,7 @@ struct Character {
 struct Button {
     std::string text;
     float x, y, width, height;
-    bool isHovered;
+    bool isHovered = false;
     bool wasHovered = false;
     float currentScale = 1.0f;
     std::function<void()> onClick;
@@ -43,11 +43,15 @@ public:
     bool HandleClick(double mouseX, double mouseY);
     void HandleKeyEvent(int key); // Nueva función
     void AddButton(const std::string& text, float x, float y, float w, float h, std::function<void()> onClick, const std::string& audioPath = "");
+    void SetButtonPosition(int index, float x, float y);
     void LoadImage(const std::string& imagePath); // Nueva función para pre-carga
     void StartAmbient();
     void StopAmbient();
     float GetTextWidth(const std::string& text, float scale);
     void GetTextVerticalBounds(const std::string& text, float scale, float& minBearingY, float& maxBearingY);
+    void SetBackground(const std::string& bgPath);
+    void SetBackgroundShader(const std::string& fragPath);
+    void SetFont(const std::string& fontPath, float fontSize);
     void PlaySound(ALuint buffer);
     ALuint GetHoverSoundBuffer() const { return sharedHoverSoundBuffer; }
     void SetAudioManager(AudioManager* am);

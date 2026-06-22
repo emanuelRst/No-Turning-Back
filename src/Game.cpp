@@ -44,7 +44,7 @@ Game::Game(int w, int h)
       playerModel(nullptr), skyboxModel(nullptr), skyboxShaderProgram(0),
       coinModel(nullptr), trainObstacleModel(nullptr), rampObstacleModel(nullptr), overheadObstacleModel(nullptr),
       gameTime(0.0f), groundScroll(0.0f),
-      currentState(GameState::MENU), menu(new Menu()), gameOverMenu(new Menu()), pauseMenu(new Menu()), helpMenu(new Menu()), helpMenuKeys(new Menu()) {
+      currentState(GameState::MENU), menu(new Menu()), gameOverMenu(new Menu()), pauseMenu(new Menu()), helpMenu(new Menu()), helpMenuKeys(new Menu()), creditsMenu(new Menu()) {
     instance = this;
 
     float buttonWidth = 250.0f;
@@ -77,8 +77,11 @@ Game::Game(int w, int h)
     }, "assets/audio/Menu/Buttoms.wav");
 
     // Botón 4: Credits (Y: 785)
-    menu->AddButton("Credits", fixedX, 840, targetButtonWidth, targetButtonHeight, [](){ 
-        std::cout << "Credits\n"; 
+    menu->AddButton("Credits", fixedX, 840, targetButtonWidth, targetButtonHeight, [this](){ 
+        this->currentState = GameState::CREDITS;
+        int fbW, fbH;
+        glfwGetFramebufferSize(this->window, &fbW, &fbH);
+        this->creditsScroll = 0.0f;
     }, "assets/audio/Menu/Buttoms.wav");
 
     // Botón 5: Exit (Y: 840)
@@ -139,8 +142,10 @@ Game::~Game() {
     delete pauseMenu;
     delete helpMenu;
     delete helpMenuKeys;
+    delete creditsMenu;
     if (gameAmbientBuffer != 0) alDeleteBuffers(1, &gameAmbientBuffer);
     if (characterSelectAmbientBuffer != 0) alDeleteBuffers(1, &characterSelectAmbientBuffer);
+    if (creditsAmbientBuffer != 0) alDeleteBuffers(1, &creditsAmbientBuffer);
     glfwTerminate();
 }
 
@@ -163,16 +168,28 @@ bool Game::Init() {
     pauseMenu->SetAudioManager(&audioManager);
     helpMenu->SetAudioManager(&audioManager);
     helpMenuKeys->SetAudioManager(&audioManager);
-    menu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Menu/FondoMenu.png");
-    gameOverMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Menu/FondoMenu.png");
-    pauseMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Menu/FondoMenu.png");
-    helpMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Menu/FondoMenu.png");
-    helpMenuKeys->Init("assets/fonts/DirtyWar.otf", "assets/textures/Menu/FondoMenu.png");
+    creditsMenu->SetAudioManager(&audioManager);
+    menu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
+    gameOverMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
+    gameOverMenu->SetBackgroundShader("assets/shaders/background_fog.frag");
+    pauseMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
+    helpMenu->Init("assets/fonts/soldier.ttf", "assets/textures/Backgrounds/FondoMenu.png");
+    helpMenu->SetBackgroundShader("assets/shaders/background_fog.frag");
+    helpMenuKeys->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
+    creditsMenu->Init("assets/fonts/soldier.ttf", "assets/textures/Backgrounds/fondocredits.png");
+    creditsMenu->SetBackgroundShader("assets/shaders/background_fog.frag");
+    creditsMenu->AddButton("Esc", 100.0f, 60.0f, 100, 50, [this](){
+        this->currentState = GameState::MENU;
+    }, "assets/audio/Menu/Buttoms.wav");
     
     // Pre-cargar imágenes para evitar lag al renderizar
     helpMenu->LoadImage("assets/textures/Menu/wasd.png");
     helpMenu->LoadImage("assets/textures/Menu/simbol1.png");
     menu->LoadImage("assets/textures/Menu/NO-TURNING-BACK.png");
+    creditsMenu->LoadImage("assets/textures/Menu/NO-TURNING-BACK.png");
+    gameOverMenu->LoadImage("assets/textures/GameOver/sahurfail.png");
+    gameOverMenu->LoadImage("assets/textures/GameOver/alien.png");
+    gameOverMenu->LoadImage("assets/textures/GameOver/teto.png");
 
     // Cargar modelos de personajes seleccionables
     // characters es dueño de los modelos; playerModel solo apunta al actual
@@ -271,6 +288,7 @@ bool Game::Init() {
         std::cout << "GameTheme.wav cargado correctamente, buffer = " << gameAmbientBuffer << std::endl;
     }
     audioManager.LoadSound("assets/audio/Menu/Character-Select.wav", characterSelectAmbientBuffer);
+    audioManager.LoadSound("assets/audio/Menu/endtitle.wav", creditsAmbientBuffer);
     if (characterSelectAmbientBuffer == 0) {
         std::cerr << "ERROR CARGANDO Character-Select.wav" << std::endl;
     } else {
@@ -494,6 +512,9 @@ void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, in
             instance->pauseMenu->HandleKeyEvent(key);
         } else if (instance->currentState == GameState::HELP) {
             instance->helpMenu->HandleKeyEvent(key);
+        } else if (instance->currentState == GameState::CREDITS) {
+            if (key == GLFW_KEY_ESCAPE) instance->currentState = GameState::MENU;
+            else instance->creditsMenu->HandleKeyEvent(key);
         }
     }
 }
@@ -543,6 +564,8 @@ void Game::CursorPosCallback(GLFWwindow* window, double xpos, double ypos) {
         instance->pauseMenu->SetMousePos(xpos, ypos);
     } else if (instance->currentState == GameState::HELP) {
         instance->helpMenu->SetMousePos(xpos, ypos);
+    } else if (instance->currentState == GameState::CREDITS) {
+        instance->creditsMenu->SetMousePos(xpos, ypos);
     }
 }
 
@@ -599,6 +622,8 @@ void Game::MouseButtonCallback(GLFWwindow* window, int button, int action, int m
         instance->pauseMenu->HandleClick(xpos, ypos);
     } else if (instance->currentState == GameState::HELP) {
         instance->helpMenu->HandleClick(xpos, ypos);
+    } else if (instance->currentState == GameState::CREDITS) {
+        instance->creditsMenu->HandleClick(xpos, ypos);
     }
 }
 
@@ -624,7 +649,12 @@ void Game::Run() {
         double elapsed = glfwGetTime() - currentTime;
         if (elapsed < kTargetFrameTime) {
             double sleepMs = (kTargetFrameTime - elapsed) * 1000.0;
-            std::this_thread::sleep_for(std::chrono::milliseconds((int)sleepMs));
+            if (sleepMs > 2.0) {
+                std::this_thread::sleep_for(std::chrono::duration<double, std::milli>(sleepMs - 1.0));
+            }
+            while (glfwGetTime() - currentTime < kTargetFrameTime) {
+                std::this_thread::yield();
+            }
         }
     }
 }
@@ -648,6 +678,12 @@ void Game::Update(float deltaTime) {
         if (currentState == GameState::CHARACTER_SELECT) {
             audioManager.PlayAmbient(characterSelectAmbientBuffer);
         } else if (prevState == GameState::CHARACTER_SELECT && currentState != GameState::MENU) {
+            audioManager.StopAmbient();
+        }
+
+        if (currentState == GameState::CREDITS) {
+            audioManager.PlayAmbient(creditsAmbientBuffer);
+        } else if (prevState == GameState::CREDITS) {
             audioManager.StopAmbient();
         }
 
@@ -681,6 +717,14 @@ void Game::Update(float deltaTime) {
         return;
     }
 
+    if (currentState == GameState::CREDITS) {
+        creditsScroll += deltaTime * 60.0f;
+        int fbWidth, fbHeight;
+        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+        creditsMenu->Update(deltaTime, fbWidth, fbHeight);
+        return;
+    }
+
     if (currentState == GameState::PAUSED) {
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
@@ -706,6 +750,11 @@ void Game::Update(float deltaTime) {
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
             SaveProgress();
             audioManager.StopAmbient();
+            int fbW, fbH;
+            glfwGetFramebufferSize(window, &fbW, &fbH);
+            float btnY = fbH * 0.85f;
+            gameOverMenu->SetButtonPosition(0, fbW * 0.35f, btnY);
+            gameOverMenu->SetButtonPosition(1, fbW * 0.65f, btnY);
             gameOverMenu->SelectFirstButton();
         }
         int fbWidth, fbHeight;
@@ -841,9 +890,79 @@ void Game::Render() {
 
         helpMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, true);
         helpMenu->RenderImage("assets/textures/Menu/wasd.png", fbWidth / 2.0f, fbHeight / 2.0f + 150.0f, 400.0f, 400.0f, fbWidth, fbHeight);
-        helpMenu->RenderImage("assets/textures/Menu/simbol1.png", fbWidth / 2.0f - 500.0f, fbHeight / 2.0f - 250.0f, 500.0f, 300.0f, fbWidth, fbHeight);
-        helpMenu->RenderImage("assets/textures/Menu/Hand.png", fbWidth * 0.75f, fbHeight / 2.0f, 500.0f, 500.0f, fbWidth, fbHeight);
+
+        helpMenu->RenderImage("assets/textures/Menu/simbol1.png", fbWidth / 2.0f - 680.0f, fbHeight / 2.0f - 250.0f, 500.0f, 300.0f, fbWidth, fbHeight);
+
+        helpMenu->RenderImage("assets/textures/Menu/Hand.png", fbWidth * 0.80f, fbHeight / 4.0f, 300.0f, 180.0f, fbWidth, fbHeight);
+
+        helpMenu->RenderImage("assets/textures/Menu/metalplate.png", fbWidth * 0.480f, fbHeight / 4.0f, 700.0f, 350.0f, fbWidth, fbHeight);
+
+        glDisable(GL_DEPTH_TEST);
+        {
+            float cx = fbWidth * 0.480f;
+            float cy = fbHeight / 4.0f;
+            float s = 0.62f;
+
+            helpMenu->RenderText("Use W, A, S, D keys to navigate", cx, cy - 95.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+            helpMenu->RenderText("through this desolate world:", cx, cy - 70.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+            helpMenu->RenderText("W: Jump", cx, cy - 30.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+            helpMenu->RenderText("A: Move left", cx, cy + 0.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+            helpMenu->RenderText("S: Crouch", cx, cy + 30.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+            helpMenu->RenderText("D: Move right", cx, cy + 60.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+        }
+        glEnable(GL_DEPTH_TEST);
+
         helpMenu->RenderSelectionCursor("assets/textures/Menu/Hand.png", 100.0f, 150.0f, 100.0f, fbWidth, fbHeight);
+
+        glfwSwapBuffers(window);
+        return;
+    }
+
+    if (currentState == GameState::CREDITS) {
+        int fbW, fbH;
+        glfwGetFramebufferSize(window, &fbW, &fbH);
+        glViewport(0, 0, fbW, fbH);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        creditsMenu->Render(menuShaderProgram, VAO, fbW, fbH, true);
+
+        glDisable(GL_DEPTH_TEST);
+        {
+            float totalHeight = 1800.0f;
+            float offset = fmod(creditsScroll, totalHeight + fbH);
+            float y = fbH + totalHeight - offset;
+            glm::vec3 white(1.0f, 1.0f, 1.0f);
+            float s = 1.40f;
+
+            creditsMenu->RenderText("3D Modeling and Animation", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
+            y -= 50.0f * s;
+            creditsMenu->RenderText("Mendoza Blandon Wilfredo Francisco (2024 1901U)", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
+            y -= 100.0f * s;
+
+            creditsMenu->RenderText("Menu design with effects and audio manager", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
+            y -= 50.0f * s;
+            creditsMenu->RenderText("Tinoco Davila Diana Esther (2024 1863U)", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
+            y -= 150.0f * s;
+
+            creditsMenu->RenderText("Mechanics Programming and Backend", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
+            y -= 50.0f * s;
+            creditsMenu->RenderText("Gonzalez Rostran German Emanuel (2024 1942U)", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
+            y -= 200.0f * s;
+
+            creditsMenu->RenderText("Universidad Nacional de Ingenieria ( UNI )", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
+            y -= 55.0f * s;
+            creditsMenu->RenderText("Students of the Computer Engineering Program", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
+            y -= 250.0f * s;
+
+            creditsMenu->RenderText("Credits", fbW / 2.0f, y, 0.9f * s, white, fbW, fbH);
+            y -= 300.0f * s;
+
+            creditsMenu->RenderImage("assets/textures/Menu/NO-TURNING-BACK.png", fbW / 2.0f, y, fbW * 0.55f * s, fbH * 0.18f * s, fbW, fbH);
+        }
+        glEnable(GL_DEPTH_TEST);
+
+        creditsMenu->RenderSelectionCursor("assets/textures/Menu/Hand.png", 100.0f, 150.0f, 100.0f, fbW, fbH);
 
         glfwSwapBuffers(window);
         return;
@@ -859,12 +978,14 @@ void Game::Render() {
 
         std::string charName = characters[selectedModelIndex].name;
         if (charName == "Thug") {
-            gameOverMenu->RenderImage("assets/textures/Menu/sahurfail.png", fbWidth / 2.0f, fbHeight / 2.0f, (float)fbWidth, (float)fbHeight, fbWidth, fbHeight);
+            gameOverMenu->SetBackground("assets/textures/GameOver/sahurfail.png");
         } else if (charName == "Alien") {
-            gameOverMenu->RenderImage("assets/textures/Menu/alien.png", fbWidth / 2.0f, fbHeight / 2.0f, (float)fbWidth, (float)fbHeight, fbWidth, fbHeight);
+            gameOverMenu->SetBackground("assets/textures/GameOver/alien.png");
+        } else if (charName == "Teto") {
+            gameOverMenu->SetBackground("assets/textures/GameOver/teto.png");
         }
 
-        gameOverMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, false);
+        gameOverMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, true);
         
         // Dibujar texto "Perdiste"
         gameOverMenu->RenderText("Game Over", fbWidth / 2.0f, fbHeight / 2.0f - 100.0f, 1.5f, glm::vec3(1.0f, 0.0f, 0.0f), fbWidth, fbHeight);
@@ -1201,7 +1322,7 @@ void Game::RenderCharacterSelect() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glDisable(GL_DEPTH_TEST);
-    menu->RenderImage("assets/textures/Menu/fondoSelect.png", (float)fbWidth / 2.0f, (float)fbHeight / 2.0f, (float)fbWidth, (float)fbHeight, fbWidth, fbHeight);
+    menu->RenderImage("assets/textures/Backgrounds/fondoSelect.png", (float)fbWidth / 2.0f, (float)fbHeight / 2.0f, (float)fbWidth, (float)fbHeight, fbWidth, fbHeight);
     glEnable(GL_DEPTH_TEST);
 
     float aspect = (float)fbWidth / (float)fbHeight;

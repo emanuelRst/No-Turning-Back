@@ -273,6 +273,7 @@ void Menu::SetMousePos(double x, double y) {
 void Menu::Update(float deltaTime, int width, int height) {
     time += deltaTime;
     float smoothSpeed = 10.0f; // Velocidad de suavizado
+    float clampedDelta = std::min(deltaTime, 1.0f / 30.0f);
 
     for (int i = 0; i < buttons.size(); ++i) {
         auto& button = buttons[i];
@@ -299,8 +300,8 @@ void Menu::Update(float deltaTime, int width, int height) {
         }
         button.wasHovered = button.isHovered;
         
-        float targetScale = button.isHovered ? 1.2f : 1.0f;
-        button.currentScale += (targetScale - button.currentScale) * smoothSpeed * deltaTime;
+        float targetScale = button.isHovered ? 1.05f : 1.0f;
+        button.currentScale += (targetScale - button.currentScale) * smoothSpeed * clampedDelta;
     }
 }
 
@@ -477,6 +478,56 @@ void Menu::RenderSelectionCursor(const std::string& imagePath, float margin, flo
     glEnable(GL_DEPTH_TEST);
 }
 
+void Menu::SetButtonPosition(int index, float x, float y) {
+    if (index >= 0 && index < (int)buttons.size()) {
+        buttons[index].x = x;
+        buttons[index].y = y;
+    }
+}
+
+void Menu::SetBackground(const std::string& bgPath) {
+    auto it = imageTextures.find(bgPath);
+    if (it != imageTextures.end()) {
+        backgroundTexture = it->second;
+    } else {
+        if (backgroundTexture != 0) glDeleteTextures(1, &backgroundTexture);
+        backgroundTexture = SOIL_load_OGL_texture(
+            bgPath.c_str(),
+            SOIL_LOAD_AUTO,
+            SOIL_CREATE_NEW_ID,
+            SOIL_FLAG_MIPMAPS | SOIL_FLAG_TEXTURE_REPEATS
+        );
+        if (backgroundTexture == 0) {
+            std::cerr << "Failed to load background image: " << bgPath << " - " << SOIL_last_result() << std::endl;
+        }
+    }
+}
+
+void Menu::SetBackgroundShader(const std::string& fragPath) {
+    std::string vSource = ReadShaderFile("assets/shaders/background.vert");
+    std::string fSource = ReadShaderFile(fragPath);
+    const char* vSourceC = vSource.c_str();
+    const char* fSourceC = fSource.c_str();
+
+    unsigned int vShaderBg = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vShaderBg, 1, &vSourceC, NULL);
+    glCompileShader(vShaderBg);
+    unsigned int fShaderBg = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fShaderBg, 1, &fSourceC, NULL);
+    glCompileShader(fShaderBg);
+    unsigned int newProgram = glCreateProgram();
+    glAttachShader(newProgram, vShaderBg);
+    glAttachShader(newProgram, fShaderBg);
+    glLinkProgram(newProgram);
+
+    glDeleteShader(vShaderBg);
+    glDeleteShader(fShaderBg);
+
+    if (backgroundShaderProgram != 0) glDeleteProgram(backgroundShaderProgram);
+    backgroundShaderProgram = newProgram;
+    menuUC.image = glGetUniformLocation(backgroundShaderProgram, "image");
+}
+
 void Menu::LoadImage(const std::string& imagePath) {
     if (imageTextures.find(imagePath) == imageTextures.end()) {
         unsigned int textureID = SOIL_load_OGL_texture(
@@ -521,6 +572,42 @@ void Menu::AddButton(const std::string& text, float x, float y, float w, float h
 
 void Menu::SetAudioManager(AudioManager* am) {
     audioManager = am;
+}
+
+void Menu::SetFont(const std::string& fontPath, float fontSize) {
+    Characters.clear();
+    if (atlasTexture != 0) glDeleteTextures(1, &atlasTexture);
+
+    std::ifstream fontFile(fontPath, std::ios::binary);
+    if (!fontFile.is_open()) {
+        std::cerr << "Failed to load font: " << fontPath << std::endl;
+        return;
+    }
+    std::vector<unsigned char> fontBuffer((std::istreambuf_iterator<char>(fontFile)), std::istreambuf_iterator<char>());
+
+    unsigned char atlasData[512 * 512];
+    stbtt_bakedchar cdata[96];
+    stbtt_BakeFontBitmap(fontBuffer.data(), 0, fontSize, atlasData, 512, 512, 32, 96, cdata);
+
+    glGenTextures(1, &atlasTexture);
+    glBindTexture(GL_TEXTURE_2D, atlasTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, 512, 512, 0, GL_RED, GL_UNSIGNED_BYTE, atlasData);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    for (int i = 0; i < 96; i++) {
+        Character ch = {
+            atlasTexture,
+            glm::ivec2(cdata[i].x1 - cdata[i].x0, cdata[i].y1 - cdata[i].y0),
+            glm::ivec2(cdata[i].xoff, cdata[i].yoff),
+            (unsigned int)cdata[i].xadvance,
+            cdata[i].x0 / 512.0f, cdata[i].y0 / 512.0f,
+            cdata[i].x1 / 512.0f, cdata[i].y1 / 512.0f
+        };
+        Characters.insert(std::pair<char, Character>(32 + i, ch));
+    }
 }
 
 void Menu::PlaySound(ALuint buffer) {

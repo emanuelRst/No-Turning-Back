@@ -16,7 +16,7 @@
 // Forward declaration
 class Menu;
 
-enum class GameState { MENU, PLAYING, GAME_OVER, PAUSED, HELP, CHARACTER_SELECT };
+enum class GameState { MENU, PLAYING, GAME_OVER, PAUSED, HELP, CHARACTER_SELECT, CREDITS };
 
 // Clase sencilla para los segmentos del suelo
 class GroundSegment : public GameObject {
@@ -64,6 +64,8 @@ private:
     Menu* pauseMenu;
     Menu* helpMenu;
     Menu* helpMenuKeys; // NEW
+    Menu* creditsMenu;
+    float creditsScroll = 0.0f;
     
     AudioManager audioManager; // Added here properly
     // Shader program y buffers
@@ -107,6 +109,7 @@ private:
     Model* overheadObstacleModel;
     ALuint gameAmbientBuffer = 0;
     ALuint characterSelectAmbientBuffer = 0;
+    ALuint creditsAmbientBuffer = 0;
     int runCoins = 0;
 
     int totalCoins = 0;
