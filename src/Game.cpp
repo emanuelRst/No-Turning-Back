@@ -173,10 +173,10 @@ bool Game::Init() {
     gameOverMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
     gameOverMenu->SetBackgroundShader("assets/shaders/background_fog.frag");
     pauseMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
-    helpMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
+    helpMenu->Init("assets/fonts/soldier.ttf", "assets/textures/Backgrounds/FondoMenu.png");
     helpMenu->SetBackgroundShader("assets/shaders/background_fog.frag");
     helpMenuKeys->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
-    creditsMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/fondocredits.png");
+    creditsMenu->Init("assets/fonts/soldier.ttf", "assets/textures/Backgrounds/fondocredits.png");
     creditsMenu->SetBackgroundShader("assets/shaders/background_fog.frag");
     creditsMenu->AddButton("Esc", 100.0f, 60.0f, 100, 50, [this](){
         this->currentState = GameState::MENU;
@@ -649,7 +649,12 @@ void Game::Run() {
         double elapsed = glfwGetTime() - currentTime;
         if (elapsed < kTargetFrameTime) {
             double sleepMs = (kTargetFrameTime - elapsed) * 1000.0;
-            std::this_thread::sleep_for(std::chrono::milliseconds((int)sleepMs));
+            if (sleepMs > 2.0) {
+                std::this_thread::sleep_for(std::chrono::duration<double, std::milli>(sleepMs - 1.0));
+            }
+            while (glfwGetTime() - currentTime < kTargetFrameTime) {
+                std::this_thread::yield();
+            }
         }
     }
 }
@@ -894,7 +899,6 @@ void Game::Render() {
         helpMenu->RenderImage("assets/textures/Menu/metalplate.png", fbWidth * 0.480f, fbHeight / 4.0f, 700.0f, 350.0f, fbWidth, fbHeight);
 
         glDisable(GL_DEPTH_TEST);
-        helpMenu->SetFont("assets/fonts/soldier.ttf", 64.0f);
         {
             float cx = fbWidth * 0.480f;
             float cy = fbHeight / 4.0f;
@@ -907,7 +911,6 @@ void Game::Render() {
             helpMenu->RenderText("S: Crouch", cx, cy + 30.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
             helpMenu->RenderText("D: Move right", cx, cy + 60.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
         }
-        helpMenu->SetFont("assets/fonts/DirtyWar.otf", 64.0f);
         glEnable(GL_DEPTH_TEST);
 
         helpMenu->RenderSelectionCursor("assets/textures/Menu/Hand.png", 100.0f, 150.0f, 100.0f, fbWidth, fbHeight);
@@ -926,7 +929,6 @@ void Game::Render() {
         creditsMenu->Render(menuShaderProgram, VAO, fbW, fbH, true);
 
         glDisable(GL_DEPTH_TEST);
-        creditsMenu->SetFont("assets/fonts/soldier.ttf", 64.0f);
         {
             float totalHeight = 1800.0f;
             float offset = fmod(creditsScroll, totalHeight + fbH);
@@ -959,7 +961,6 @@ void Game::Render() {
 
             creditsMenu->RenderImage("assets/textures/Menu/NO-TURNING-BACK.png", fbW / 2.0f, y, fbW * 0.55f * s, fbH * 0.18f * s, fbW, fbH);
         }
-        creditsMenu->SetFont("assets/fonts/DirtyWar.otf", 64.0f);
         glEnable(GL_DEPTH_TEST);
 
         creditsMenu->RenderSelectionCursor("assets/textures/Menu/Hand.png", 100.0f, 150.0f, 100.0f, fbW, fbH);
