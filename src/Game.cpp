@@ -195,7 +195,7 @@ bool Game::Init() {
 
     // Cargar modelos de personajes seleccionables
     // characters es dueño de los modelos; playerModel solo apunta al actual
-    characters.push_back({"Thug", "assets/models/thug/tung.glb", new Model("assets/models/thug/tung.glb")});
+    characters.push_back({"TungTung", "assets/models/thug/tung.glb", new Model("assets/models/thug/tung.glb")});
     characters.push_back({"Alien", "assets/models/alien/alien.glb", new Model("assets/models/alien/alien.glb")});
     characters.push_back({"Teto", "assets/models/Teto/Teto.glb", new Model("assets/models/Teto/Teto.glb")});
     characterUnlocked.assign(characters.size(), false);
@@ -990,7 +990,7 @@ void Game::Render() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         std::string charName = characters[selectedModelIndex].name;
-        if (charName == "Tung Tung") {
+        if (charName == "TungTung") {
             gameOverMenu->SetBackground("assets/textures/GameOver/sahurfail.png");
         } else if (charName == "Alien") {
             gameOverMenu->SetBackground("assets/textures/GameOver/alien.png");
