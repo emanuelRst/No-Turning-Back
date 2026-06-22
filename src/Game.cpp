@@ -44,7 +44,7 @@ Game::Game(int w, int h)
       playerModel(nullptr), skyboxModel(nullptr), skyboxShaderProgram(0),
       coinModel(nullptr), trainObstacleModel(nullptr), rampObstacleModel(nullptr), overheadObstacleModel(nullptr),
       gameTime(0.0f), groundScroll(0.0f),
-      currentState(GameState::MENU), menu(new Menu()), gameOverMenu(new Menu()), pauseMenu(new Menu()), helpMenu(new Menu()), helpMenuKeys(new Menu()) {
+      currentState(GameState::MENU), menu(new Menu()), gameOverMenu(new Menu()), pauseMenu(new Menu()), helpMenu(new Menu()), helpMenuKeys(new Menu()), creditsMenu(new Menu()) {
     instance = this;
 
     float buttonWidth = 250.0f;
@@ -77,8 +77,9 @@ Game::Game(int w, int h)
     }, "assets/audio/Menu/Buttoms.wav");
 
     // Botón 4: Credits (Y: 785)
-    menu->AddButton("Credits", fixedX, 840, targetButtonWidth, targetButtonHeight, [](){ 
-        std::cout << "Credits\n"; 
+    menu->AddButton("Credits", fixedX, 840, targetButtonWidth, targetButtonHeight, [this](){ 
+        this->currentState = GameState::CREDITS;
+        this->creditsScroll = 0.0f;
     }, "assets/audio/Menu/Buttoms.wav");
 
     // Botón 5: Exit (Y: 840)
@@ -139,6 +140,7 @@ Game::~Game() {
     delete pauseMenu;
     delete helpMenu;
     delete helpMenuKeys;
+    delete creditsMenu;
     if (gameAmbientBuffer != 0) alDeleteBuffers(1, &gameAmbientBuffer);
     if (characterSelectAmbientBuffer != 0) alDeleteBuffers(1, &characterSelectAmbientBuffer);
     glfwTerminate();
@@ -163,18 +165,24 @@ bool Game::Init() {
     pauseMenu->SetAudioManager(&audioManager);
     helpMenu->SetAudioManager(&audioManager);
     helpMenuKeys->SetAudioManager(&audioManager);
+    creditsMenu->SetAudioManager(&audioManager);
     menu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
     gameOverMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
     gameOverMenu->SetBackgroundShader("assets/shaders/background_fog.frag");
     pauseMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
     helpMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
-    helpMenu->SetBackgroundShader("assets/shaders/background_plain.frag");
+    helpMenu->SetBackgroundShader("assets/shaders/background_fog.frag");
     helpMenuKeys->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
+    creditsMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/fondocredits.png");
+    creditsMenu->AddButton("Back", (float)width / 2.0f + 567.0f, (float)height / 2.0f + 610.0f, 300, 100, [this](){
+        this->currentState = GameState::MENU;
+    }, "assets/audio/Menu/Buttoms.wav");
     
     // Pre-cargar imágenes para evitar lag al renderizar
     helpMenu->LoadImage("assets/textures/Menu/wasd.png");
     helpMenu->LoadImage("assets/textures/Menu/simbol1.png");
     menu->LoadImage("assets/textures/Menu/NO-TURNING-BACK.png");
+    creditsMenu->LoadImage("assets/textures/Menu/NO-TURNING-BACK.png");
     gameOverMenu->LoadImage("assets/textures/GameOver/sahurfail.png");
     gameOverMenu->LoadImage("assets/textures/GameOver/alien.png");
     gameOverMenu->LoadImage("assets/textures/GameOver/teto.png");
@@ -499,6 +507,9 @@ void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, in
             instance->pauseMenu->HandleKeyEvent(key);
         } else if (instance->currentState == GameState::HELP) {
             instance->helpMenu->HandleKeyEvent(key);
+        } else if (instance->currentState == GameState::CREDITS) {
+            if (key == GLFW_KEY_ESCAPE) instance->currentState = GameState::MENU;
+            else instance->creditsMenu->HandleKeyEvent(key);
         }
     }
 }
@@ -548,6 +559,8 @@ void Game::CursorPosCallback(GLFWwindow* window, double xpos, double ypos) {
         instance->pauseMenu->SetMousePos(xpos, ypos);
     } else if (instance->currentState == GameState::HELP) {
         instance->helpMenu->SetMousePos(xpos, ypos);
+    } else if (instance->currentState == GameState::CREDITS) {
+        instance->creditsMenu->SetMousePos(xpos, ypos);
     }
 }
 
@@ -604,6 +617,8 @@ void Game::MouseButtonCallback(GLFWwindow* window, int button, int action, int m
         instance->pauseMenu->HandleClick(xpos, ypos);
     } else if (instance->currentState == GameState::HELP) {
         instance->helpMenu->HandleClick(xpos, ypos);
+    } else if (instance->currentState == GameState::CREDITS) {
+        instance->creditsMenu->HandleClick(xpos, ypos);
     }
 }
 
@@ -683,6 +698,14 @@ void Game::Update(float deltaTime) {
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
         helpMenu->Update(deltaTime, fbWidth, fbHeight);
+        return;
+    }
+
+    if (currentState == GameState::CREDITS) {
+        creditsScroll += deltaTime * 60.0f;
+        int fbWidth, fbHeight;
+        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+        creditsMenu->Update(deltaTime, fbWidth, fbHeight);
         return;
     }
 
@@ -864,18 +887,71 @@ void Game::Render() {
         {
             float cx = fbWidth * 0.480f;
             float cy = fbHeight / 4.0f;
-            float s = 0.51f;
-            helpMenu->RenderText("Usa las teclas W, A, S, D para navegar", cx, cy - 95.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
-            helpMenu->RenderText("por este mundo desolado:", cx, cy - 70.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
-            helpMenu->RenderText("W: Saltar / Subir", cx, cy - 30.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
-            helpMenu->RenderText("A: Mover a la izquierda", cx, cy + 0.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
-            helpMenu->RenderText("S: Agacharse / Bajar", cx, cy + 30.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
-            helpMenu->RenderText("D: Mover a la derecha", cx, cy + 60.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+            float s = 0.62f;
+
+            helpMenu->RenderText("Use W, A, S, D keys to navigate", cx, cy - 95.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+            helpMenu->RenderText("through this desolate world:", cx, cy - 70.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+            helpMenu->RenderText("W: Jump", cx, cy - 30.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+            helpMenu->RenderText("A: Move left", cx, cy + 0.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+            helpMenu->RenderText("S: Crouch", cx, cy + 30.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+            helpMenu->RenderText("D: Move right", cx, cy + 60.0f, s, glm::vec3(0.0f, 0.0f, 0.0f), fbWidth, fbHeight);
         }
         helpMenu->SetFont("assets/fonts/DirtyWar.otf", 64.0f);
         glEnable(GL_DEPTH_TEST);
 
         helpMenu->RenderSelectionCursor("assets/textures/Menu/Hand.png", 100.0f, 150.0f, 100.0f, fbWidth, fbHeight);
+
+        glfwSwapBuffers(window);
+        return;
+    }
+
+    if (currentState == GameState::CREDITS) {
+        int fbW, fbH;
+        glfwGetFramebufferSize(window, &fbW, &fbH);
+        glViewport(0, 0, fbW, fbH);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        creditsMenu->Render(menuShaderProgram, VAO, fbW, fbH, true);
+
+        glDisable(GL_DEPTH_TEST);
+        creditsMenu->SetFont("assets/fonts/soldier.ttf", 64.0f);
+        {
+            float totalHeight = 1400.0f;
+            float offset = fmod(creditsScroll, totalHeight + fbH);
+            float y = fbH + totalHeight - offset;
+            glm::vec3 white(1.0f, 1.0f, 1.0f);
+            float s = 1.3f;
+
+            creditsMenu->RenderText("3D Modeling and Animation", fbW / 2.0f, y, 0.4f * s, white, fbW, fbH);
+            y -= 50.0f * s;
+            creditsMenu->RenderText("Mendoza Blandon Wilfredo Francisco (2024-1901U)", fbW / 2.0f, y, 0.45f * s, white, fbW, fbH);
+            y -= 90.0f * s;
+
+            creditsMenu->RenderText("Menu Design, Aesthetics, and Audio Management", fbW / 2.0f, y, 0.4f * s, white, fbW, fbH);
+            y -= 50.0f * s;
+            creditsMenu->RenderText("Tinoco Davila Diana Esther (2024-1863U)", fbW / 2.0f, y, 0.45f * s, white, fbW, fbH);
+            y -= 100.0f * s;
+
+            creditsMenu->RenderText("Mechanics Programming and Backend", fbW / 2.0f, y, 0.4f * s, white, fbW, fbH);
+            y -= 50.0f * s;
+            creditsMenu->RenderText("Gonzalez Rostran German Emanuel (2024-1942U)", fbW / 2.0f, y, 0.45f * s, white, fbW, fbH);
+            y -= 90.0f * s;
+
+            creditsMenu->RenderText("Universidad Nacional de Ingenieria (UNI)", fbW / 2.0f, y, 0.52f * s, white, fbW, fbH);
+            y -= 55.0f * s;
+            creditsMenu->RenderText("Students of the Computer Engineering Program", fbW / 2.0f, y, 0.52f * s, white, fbW, fbH);
+            y -= 120.0f * s;
+
+            creditsMenu->RenderText("Credits", fbW / 2.0f, y, 0.9f * s, white, fbW, fbH);
+            y -= 130.0f * s;
+
+            creditsMenu->RenderImage("assets/textures/Menu/NO-TURNING-BACK.png", fbW / 2.0f, y, fbW * 0.6f * s, fbH * 0.20f * s, fbW, fbH);
+        }
+        creditsMenu->SetFont("assets/fonts/DirtyWar.otf", 64.0f);
+        glEnable(GL_DEPTH_TEST);
+
+        creditsMenu->RenderSelectionCursor("assets/textures/Menu/Hand.png", 100.0f, 150.0f, 100.0f, fbW, fbH);
 
         glfwSwapBuffers(window);
         return;
