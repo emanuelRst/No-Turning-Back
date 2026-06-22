@@ -39,7 +39,7 @@ public:
     void Render(unsigned int shaderProgram, unsigned int quadVAO, int width, int height, bool drawBackground = true);
     void RenderText(const std::string& text, float x, float y, float scale, glm::vec3 color, int width, int height);
     void RenderImage(const std::string& imagePath, float x, float y, float w, float h, int width, int height);
-    void RenderSelectionCursor(const std::string& imagePath, float margin, float w, float h, int screenWidth, int screenHeight);
+    void RenderSelectionCursor(const std::string& imagePath, float margin, float w, float h, int screenWidth, int screenHeight, float yOffset = 0.0f);
     bool HandleClick(double mouseX, double mouseY);
     void HandleKeyEvent(int key); // Nueva función
     void AddButton(const std::string& text, float x, float y, float w, float h, std::function<void()> onClick, const std::string& audioPath = "");

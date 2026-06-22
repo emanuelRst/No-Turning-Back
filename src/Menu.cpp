@@ -468,13 +468,13 @@ void Menu::RenderImage(const std::string& imagePath, float x, float y, float w, 
     glDisable(GL_BLEND);
 }
 
-void Menu::RenderSelectionCursor(const std::string& imagePath, float margin, float w, float h, int screenWidth, int screenHeight) {
+void Menu::RenderSelectionCursor(const std::string& imagePath, float margin, float w, float h, int screenWidth, int screenHeight, float yOffset) {
     if (selectedButtonIndex < 0 || selectedButtonIndex >= (int)buttons.size()) return;
     const auto& btn = buttons[selectedButtonIndex];
     float textWidth = GetTextWidth(btn.text, btn.currentScale);
     float rightEdge = btn.x + textWidth / 2.0f;
     glDisable(GL_DEPTH_TEST);
-    RenderImage(imagePath, rightEdge + margin, btn.y, w, h, screenWidth, screenHeight);
+    RenderImage(imagePath, rightEdge + margin, btn.y + yOffset, w, h, screenWidth, screenHeight);
     glEnable(GL_DEPTH_TEST);
 }
 

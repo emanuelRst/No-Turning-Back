@@ -883,7 +883,7 @@ void Game::Render() {
         menu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, true);
         menu->RenderImage("assets/textures/Menu/NO-TURNING-BACK.png", fbWidth * 0.5f, fbHeight * 0.25f, fbWidth * 0.8f, fbHeight * 0.30f, fbWidth, fbHeight);
 
-          menu->RenderSelectionCursor("assets/textures/Menu/Hand.png", 100.0f, 150.0f, 100.0f, fbWidth, fbHeight);
+          menu->RenderSelectionCursor("assets/textures/Menu/Hand.png", 100.0f, 150.0f, 100.0f, fbWidth, fbHeight, 15.0f);
 
 
         glfwSwapBuffers(window);
