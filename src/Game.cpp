@@ -1484,8 +1484,8 @@ void Game::RenderHUD() {
 
     int scoreInt = (int)score;
     menu->RenderText("Coins: " + std::to_string(runCoins), 100.0f, 20.0f, 0.6f, glm::vec3(1.0f, 0.85f, 0.2f), fbWidth, fbHeight);
-    menu->RenderText("Score: " + std::to_string(scoreInt), 100.0f, 65.0f, 0.6f, glm::vec3(1.0f, 1.0f, 1.0f), fbWidth, fbHeight);
-    menu->RenderText("Best: " + std::to_string(highScores[selectedModelIndex]), 100.0f, 100.0f, 0.5f, glm::vec3(1.0f, 0.85f, 0.2f), fbWidth, fbHeight);
+    menu->RenderText("Score: " + std::to_string(scoreInt), 100.0f, 65.0f, 0.6f, glm::vec3(1.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+    menu->RenderText("Best: " + std::to_string(highScores[selectedModelIndex]), 100.0f, 100.0f, 0.5f, glm::vec3(0.0f, 1.0f, 0.0f), fbWidth, fbHeight);
 }
 
 void Game::SaveProgress() {
