@@ -177,6 +177,7 @@ bool Game::Init() {
     helpMenu->SetBackgroundShader("assets/shaders/background_fog.frag");
     helpMenuKeys->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
     creditsMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/fondocredits.png");
+    creditsMenu->SetBackgroundShader("assets/shaders/background_fog.frag");
     creditsMenu->AddButton("Esc", 100.0f, 60.0f, 100, 50, [this](){
         this->currentState = GameState::MENU;
     }, "assets/audio/Menu/Buttoms.wav");
@@ -936,25 +937,25 @@ void Game::Render() {
             creditsMenu->RenderText("3D Modeling and Animation", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
             y -= 50.0f * s;
             creditsMenu->RenderText("Mendoza Blandon Wilfredo Francisco (2024 1901U)", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
-            y -= 90.0f * s;
+            y -= 100.0f * s;
 
             creditsMenu->RenderText("Menu design with effects and audio manager", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
             y -= 50.0f * s;
             creditsMenu->RenderText("Tinoco Davila Diana Esther (2024 1863U)", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
-            y -= 100.0f * s;
+            y -= 150.0f * s;
 
             creditsMenu->RenderText("Mechanics Programming and Backend", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
             y -= 50.0f * s;
             creditsMenu->RenderText("Gonzalez Rostran German Emanuel (2024 1942U)", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
-            y -= 90.0f * s;
+            y -= 200.0f * s;
 
             creditsMenu->RenderText("Universidad Nacional de Ingenieria ( UNI )", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
             y -= 55.0f * s;
             creditsMenu->RenderText("Students of the Computer Engineering Program", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
-            y -= 120.0f * s;
+            y -= 250.0f * s;
 
             creditsMenu->RenderText("Credits", fbW / 2.0f, y, 0.9f * s, white, fbW, fbH);
-            y -= 150.0f * s;
+            y -= 300.0f * s;
 
             creditsMenu->RenderImage("assets/textures/Menu/NO-TURNING-BACK.png", fbW / 2.0f, y, fbW * 0.55f * s, fbH * 0.18f * s, fbW, fbH);
         }
