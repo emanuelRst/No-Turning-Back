@@ -108,12 +108,12 @@ Game::Game(int w, int h)
 
     // Configurar botones de Pausa
     float pauseY = (float)height / 2.0f;
-    pauseMenu->AddButton("Resume", (float)width / 2.0f, pauseY - 100.0f, 300, 100, [this](){
+    pauseMenu->AddButton("Resume", (float)width / 2.0f, pauseY - 75.0f, 300, 100, [this](){
         this->currentState = GameState::PLAYING;
         glfwSetInputMode(this->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         this->audioManager.PlayAmbient(this->gameAmbientBuffer);
     }, "assets/audio/Menu/Buttoms.wav");
-    pauseMenu->AddButton("Back to Menu", (float)width / 2.0f, pauseY + 50.0f, 300, 100, [this](){
+    pauseMenu->AddButton("Back to Menu", (float)width / 2.0f, pauseY + 75.0f, 300, 100, [this](){
         this->currentState = GameState::MENU;
         glfwSetInputMode(this->window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
         this->audioManager.StopAmbient();
@@ -1021,6 +1021,8 @@ void Game::Render() {
         RenderHUD();
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+        pauseMenu->SetButtonPosition(0, fbWidth / 2.0f, fbHeight / 2.0f - 75.0f);
+        pauseMenu->SetButtonPosition(1, fbWidth / 2.0f, fbHeight / 2.0f + 75.0f);
         pauseMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, false);
         pauseMenu->RenderSelectionCursor("assets/textures/Menu/Hand.png", 100.0f, 150.0f, 100.0f, fbWidth, fbHeight);
         glfwSwapBuffers(window);
