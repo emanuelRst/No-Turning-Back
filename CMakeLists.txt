@@ -61,6 +61,7 @@ add_executable(EndlessRunner
     src/States.cpp
     src/Coin.cpp
     vendor/glad/glad.c
+    assets/Icon/resource.rc
 )
 
 # Copiar activos a la carpeta de build
