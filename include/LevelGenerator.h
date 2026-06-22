@@ -30,8 +30,9 @@ public:
     static constexpr float kTrainWidth = 2.5f;
     static constexpr float kTrainHeight = 2.5f;
     static constexpr float kTrainDepth = 10.0f;
-    static constexpr float kOverheadHeight = 1.0f;
+    static constexpr float kOverheadHeight = 1.55f;
     static constexpr float kOverheadSizeX = 2.5f;
+    static constexpr float kOverheadSizeY = 1.3f;
     static constexpr float kOverheadSizeZ = 1.0f;
     static constexpr float kRampWidth = 2.5f;
     static constexpr float kRampHeight = 2.5f;

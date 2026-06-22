@@ -98,7 +98,7 @@ void LevelGenerator::SpawnPattern(float spawnZ, float gameTime) {
             glm::vec3(kTrainWidth, kTrainHeight, kTrainDepth), 0.0f);
         overheads.emplace_back(
             glm::vec3(0.0f, kOverheadHeight, spawnZ - 10.0f),
-            glm::vec3(kOverheadSizeX, 0.5f, kOverheadSizeZ));
+            glm::vec3(kOverheadSizeX, kOverheadSizeY, kOverheadSizeZ));
         coins.emplace_back(glm::vec3(0.0f, 0.5f, spawnZ - 12.0f));
         coins.emplace_back(glm::vec3(0.0f, 0.5f, spawnZ - 8.0f));
         break;
@@ -108,7 +108,7 @@ void LevelGenerator::SpawnPattern(float spawnZ, float gameTime) {
         for (int lane = 0; lane < 3; lane++) {
             overheads.emplace_back(
                 glm::vec3((lane - 1) * 3.0f, kOverheadHeight, spawnZ + 25.0f),
-                glm::vec3(kOverheadSizeX, 0.5f, kOverheadSizeZ));
+                glm::vec3(kOverheadSizeX, kOverheadSizeY, kOverheadSizeZ));
         }
         ramps.emplace_back(
             glm::vec3(0.0f, 0.0f, spawnZ + 10.0f),
@@ -127,10 +127,10 @@ void LevelGenerator::SpawnPattern(float spawnZ, float gameTime) {
         // Seccion 3: 2 overheads laterales + tren central + monedas
         overheads.emplace_back(
             glm::vec3(-3.0f, kOverheadHeight, spawnZ + 12.0f),
-            glm::vec3(kOverheadSizeX, 0.5f, kOverheadSizeZ));
+            glm::vec3(kOverheadSizeX, kOverheadSizeY, kOverheadSizeZ));
         overheads.emplace_back(
             glm::vec3(3.0f, kOverheadHeight, spawnZ + 12.0f),
-            glm::vec3(kOverheadSizeX, 0.5f, kOverheadSizeZ));
+            glm::vec3(kOverheadSizeX, kOverheadSizeY, kOverheadSizeZ));
         trains.emplace_back(1, spawnZ,
             glm::vec3(kTrainWidth, kTrainHeight, kTrainDepth), 0.0f);
         coins.emplace_back(glm::vec3(0.0f, 0.5f, spawnZ + 14.0f));
@@ -147,10 +147,10 @@ void LevelGenerator::SpawnPattern(float spawnZ, float gameTime) {
             glm::vec3(kTrainWidth, kTrainHeight, kTrainDepth), 0.0f);
         overheads.emplace_back(
             glm::vec3(-3.0f, kOverheadHeight, spawnZ + 12.0f),
-            glm::vec3(kOverheadSizeX, 0.5f, kOverheadSizeZ));
+            glm::vec3(kOverheadSizeX, kOverheadSizeY, kOverheadSizeZ));
         overheads.emplace_back(
             glm::vec3(3.0f, kOverheadHeight, spawnZ + 12.0f),
-            glm::vec3(kOverheadSizeX, 0.5f, kOverheadSizeZ));
+            glm::vec3(kOverheadSizeX, kOverheadSizeY, kOverheadSizeZ));
         trains.emplace_back(0, spawnZ + 5.0f,
             glm::vec3(kTrainWidth, kTrainHeight, kTrainDepth), 0.0f);
         trains.emplace_back(2, spawnZ + 5.0f,
@@ -172,7 +172,7 @@ void LevelGenerator::SpawnPattern(float spawnZ, float gameTime) {
             glm::vec3(kRampWidth, kRampHeight, kRampDepth));
         overheads.emplace_back(
             glm::vec3(0.0f, kOverheadHeight, spawnZ + 10.0f),
-            glm::vec3(kOverheadSizeX, 0.5f, kOverheadSizeZ));
+            glm::vec3(kOverheadSizeX, kOverheadSizeY, kOverheadSizeZ));
         for (int i = 0; i < 3; i++) {
             coins.emplace_back(
                 glm::vec3(0.0f, 0.5f, spawnZ + 7.0f + i * 3.0f));
