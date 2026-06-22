@@ -489,7 +489,6 @@ void Game::KeyCallback(GLFWwindow* window, int key, int scancode, int action, in
                             instance->player.SetHitboxFromModelAABB(loadedMeshAABB);
                         }
                         instance->SaveProgress();
-                        instance->currentState = GameState::MENU;
                     } else if (instance->totalCoins >= 100) {
                         instance->characterUnlocked[instance->focusedSlot] = true;
                         instance->totalCoins -= 100;
@@ -599,7 +598,6 @@ void Game::MouseButtonCallback(GLFWwindow* window, int button, int action, int m
                         instance->player.SetHitboxFromModelAABB(loadedMeshAABB);
                     }
                     instance->SaveProgress();
-                    instance->currentState = GameState::MENU;
                 } else if (instance->totalCoins >= 100) {
                     instance->characterUnlocked[i] = true;
                     instance->totalCoins -= 100;
