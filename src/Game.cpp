@@ -1018,9 +1018,13 @@ void Game::Render() {
     }
 
     if (currentState == GameState::PAUSED) {
-        RenderHUD();
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+        glViewport(0, 0, fbWidth, fbHeight);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        RenderGameScene();
+        RenderHUD();
         pauseMenu->SetButtonPosition(0, fbWidth / 2.0f, fbHeight / 2.0f - 75.0f);
         pauseMenu->SetButtonPosition(1, fbWidth / 2.0f, fbHeight / 2.0f + 75.0f);
         pauseMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, false);
@@ -1048,7 +1052,7 @@ void Game::RenderGameScene() {
     glm::mat4 projection = glm::perspective(glm::radians(60.0f), aspect, 0.1f, 100.0f);
 
     // --- Skybox: se renderiza primero, detrás de todo ---
-    if (skyboxModel && currentState == GameState::PLAYING) {
+    if (skyboxModel && (currentState == GameState::PLAYING || currentState == GameState::PAUSED)) {
         glDepthMask(GL_FALSE);
         glUseProgram(skyboxShaderProgram);
 
