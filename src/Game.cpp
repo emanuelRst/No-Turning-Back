@@ -93,12 +93,14 @@ Game::Game(int w, int h)
     float gameOverY = 700.0f;
     float btnGap = 400.0f;
     gameOverMenu->AddButton("Restart", (float)width / 2.0f + btnGap / 2.0f, gameOverY, 300, 100, [this](){
+        this->audioManager.StopAllSources();
         this->ResetRun();
         this->currentState = GameState::PLAYING;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         this->audioManager.PlayAmbient(this->gameAmbientBuffer);
     }, "assets/audio/Menu/Buttoms.wav");
     gameOverMenu->AddButton("Back to Menu", (float)width / 2.0f + btnGap + 400.0f, gameOverY, 300, 100, [this](){
+        this->audioManager.StopAllSources();
         this->currentState = GameState::MENU;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
         this->audioManager.StopAmbient();
@@ -289,6 +291,7 @@ bool Game::Init() {
     }
     audioManager.LoadSound("assets/audio/Menu/Character-Select.wav", characterSelectAmbientBuffer);
     audioManager.LoadSound("assets/audio/Menu/endtitle.wav", creditsAmbientBuffer);
+    audioManager.LoadSound("assets/audio/Menu/lose.wav", gameOverSoundBuffer);
     if (characterSelectAmbientBuffer == 0) {
         std::cerr << "ERROR CARGANDO Character-Select.wav" << std::endl;
     } else {
@@ -750,6 +753,7 @@ void Game::Update(float deltaTime) {
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
             SaveProgress();
             audioManager.StopAmbient();
+            audioManager.PlaySound(gameOverSoundBuffer);
             int fbW, fbH;
             glfwGetFramebufferSize(window, &fbW, &fbH);
             float btnY = fbH * 0.58f;
