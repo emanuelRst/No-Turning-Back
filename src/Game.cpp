@@ -752,7 +752,7 @@ void Game::Update(float deltaTime) {
             audioManager.StopAmbient();
             int fbW, fbH;
             glfwGetFramebufferSize(window, &fbW, &fbH);
-            float btnY = fbH * 0.85f;
+            float btnY = fbH * 0.58f;
             gameOverMenu->SetButtonPosition(0, fbW * 0.35f, btnY);
             gameOverMenu->SetButtonPosition(1, fbW * 0.65f, btnY);
             gameOverMenu->SelectFirstButton();
@@ -988,7 +988,7 @@ void Game::Render() {
         gameOverMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, true);
         
         // Dibujar texto "Perdiste"
-        gameOverMenu->RenderText("Game Over", fbWidth / 2.0f, fbHeight / 2.0f - 100.0f, 1.5f, glm::vec3(1.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+        gameOverMenu->RenderText("Game Over", fbWidth / 2.0f, fbHeight / 2.0f - 230.0f, 1.5f, glm::vec3(1.0f, 0.0f, 0.0f), fbWidth, fbHeight);
         gameOverMenu->RenderSelectionCursor("assets/textures/Menu/Hand.png", 100.0f, 150.0f, 100.0f, fbWidth, fbHeight);
 
         glfwSwapBuffers(window);
