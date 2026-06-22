@@ -687,7 +687,7 @@ void Game::Update(float deltaTime) {
 
         if (currentState == GameState::CREDITS) {
             audioManager.PlayAmbient(creditsAmbientBuffer);
-        } else if (prevState == GameState::CREDITS) {
+        } else if (prevState == GameState::CREDITS && currentState != GameState::MENU) {
             audioManager.StopAmbient();
         }
 
