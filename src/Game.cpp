@@ -79,7 +79,9 @@ Game::Game(int w, int h)
     // Botón 4: Credits (Y: 785)
     menu->AddButton("Credits", fixedX, 840, targetButtonWidth, targetButtonHeight, [this](){ 
         this->currentState = GameState::CREDITS;
-        this->creditsScroll = 0.0f;
+        int fbW, fbH;
+        glfwGetFramebufferSize(this->window, &fbW, &fbH);
+        this->creditsScroll = (float)fbH * 0.7f;
     }, "assets/audio/Menu/Buttoms.wav");
 
     // Botón 5: Exit (Y: 840)
@@ -143,6 +145,7 @@ Game::~Game() {
     delete creditsMenu;
     if (gameAmbientBuffer != 0) alDeleteBuffers(1, &gameAmbientBuffer);
     if (characterSelectAmbientBuffer != 0) alDeleteBuffers(1, &characterSelectAmbientBuffer);
+    if (creditsAmbientBuffer != 0) alDeleteBuffers(1, &creditsAmbientBuffer);
     glfwTerminate();
 }
 
@@ -174,7 +177,7 @@ bool Game::Init() {
     helpMenu->SetBackgroundShader("assets/shaders/background_fog.frag");
     helpMenuKeys->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/FondoMenu.png");
     creditsMenu->Init("assets/fonts/DirtyWar.otf", "assets/textures/Backgrounds/fondocredits.png");
-    creditsMenu->AddButton("Back", (float)width / 2.0f + 567.0f, (float)height / 2.0f + 610.0f, 300, 100, [this](){
+    creditsMenu->AddButton("Esc", 100.0f, 60.0f, 100, 50, [this](){
         this->currentState = GameState::MENU;
     }, "assets/audio/Menu/Buttoms.wav");
     
@@ -284,6 +287,7 @@ bool Game::Init() {
         std::cout << "GameTheme.wav cargado correctamente, buffer = " << gameAmbientBuffer << std::endl;
     }
     audioManager.LoadSound("assets/audio/Menu/Character-Select.wav", characterSelectAmbientBuffer);
+    audioManager.LoadSound("assets/audio/Menu/endtitle.wav", creditsAmbientBuffer);
     if (characterSelectAmbientBuffer == 0) {
         std::cerr << "ERROR CARGANDO Character-Select.wav" << std::endl;
     } else {
@@ -671,6 +675,12 @@ void Game::Update(float deltaTime) {
             audioManager.StopAmbient();
         }
 
+        if (currentState == GameState::CREDITS) {
+            audioManager.PlayAmbient(creditsAmbientBuffer);
+        } else if (prevState == GameState::CREDITS) {
+            audioManager.StopAmbient();
+        }
+
         prevState = currentState;
     }
 
@@ -917,36 +927,36 @@ void Game::Render() {
         glDisable(GL_DEPTH_TEST);
         creditsMenu->SetFont("assets/fonts/soldier.ttf", 64.0f);
         {
-            float totalHeight = 1400.0f;
+            float totalHeight = 1800.0f;
             float offset = fmod(creditsScroll, totalHeight + fbH);
             float y = fbH + totalHeight - offset;
             glm::vec3 white(1.0f, 1.0f, 1.0f);
-            float s = 1.3f;
+            float s = 1.40f;
 
-            creditsMenu->RenderText("3D Modeling and Animation", fbW / 2.0f, y, 0.4f * s, white, fbW, fbH);
+            creditsMenu->RenderText("3D Modeling and Animation", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
             y -= 50.0f * s;
-            creditsMenu->RenderText("Mendoza Blandon Wilfredo Francisco (2024-1901U)", fbW / 2.0f, y, 0.45f * s, white, fbW, fbH);
+            creditsMenu->RenderText("Mendoza Blandon Wilfredo Francisco (2024 1901U)", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
             y -= 90.0f * s;
 
-            creditsMenu->RenderText("Menu Design, Aesthetics, and Audio Management", fbW / 2.0f, y, 0.4f * s, white, fbW, fbH);
+            creditsMenu->RenderText("Menu design with effects and audio manager", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
             y -= 50.0f * s;
-            creditsMenu->RenderText("Tinoco Davila Diana Esther (2024-1863U)", fbW / 2.0f, y, 0.45f * s, white, fbW, fbH);
+            creditsMenu->RenderText("Tinoco Davila Diana Esther (2024 1863U)", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
             y -= 100.0f * s;
 
-            creditsMenu->RenderText("Mechanics Programming and Backend", fbW / 2.0f, y, 0.4f * s, white, fbW, fbH);
+            creditsMenu->RenderText("Mechanics Programming and Backend", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
             y -= 50.0f * s;
-            creditsMenu->RenderText("Gonzalez Rostran German Emanuel (2024-1942U)", fbW / 2.0f, y, 0.45f * s, white, fbW, fbH);
+            creditsMenu->RenderText("Gonzalez Rostran German Emanuel (2024 1942U)", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
             y -= 90.0f * s;
 
-            creditsMenu->RenderText("Universidad Nacional de Ingenieria (UNI)", fbW / 2.0f, y, 0.52f * s, white, fbW, fbH);
+            creditsMenu->RenderText("Universidad Nacional de Ingenieria ( UNI )", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
             y -= 55.0f * s;
-            creditsMenu->RenderText("Students of the Computer Engineering Program", fbW / 2.0f, y, 0.52f * s, white, fbW, fbH);
+            creditsMenu->RenderText("Students of the Computer Engineering Program", fbW / 2.0f, y, 0.5f * s, white, fbW, fbH);
             y -= 120.0f * s;
 
             creditsMenu->RenderText("Credits", fbW / 2.0f, y, 0.9f * s, white, fbW, fbH);
-            y -= 130.0f * s;
+            y -= 150.0f * s;
 
-            creditsMenu->RenderImage("assets/textures/Menu/NO-TURNING-BACK.png", fbW / 2.0f, y, fbW * 0.6f * s, fbH * 0.20f * s, fbW, fbH);
+            creditsMenu->RenderImage("assets/textures/Menu/NO-TURNING-BACK.png", fbW / 2.0f, y, fbW * 0.55f * s, fbH * 0.18f * s, fbW, fbH);
         }
         creditsMenu->SetFont("assets/fonts/DirtyWar.otf", 64.0f);
         glEnable(GL_DEPTH_TEST);

@@ -109,6 +109,7 @@ private:
     Model* overheadObstacleModel;
     ALuint gameAmbientBuffer = 0;
     ALuint characterSelectAmbientBuffer = 0;
+    ALuint creditsAmbientBuffer = 0;
     int runCoins = 0;
 
     int totalCoins = 0;
