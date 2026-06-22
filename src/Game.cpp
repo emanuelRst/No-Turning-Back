@@ -762,7 +762,7 @@ void Game::Update(float deltaTime) {
             audioManager.PlaySound(gameOverSoundBuffer);
             int fbW, fbH;
             glfwGetFramebufferSize(window, &fbW, &fbH);
-            float btnY = fbH * 0.58f;
+            float btnY = fbH * 0.70f;
             gameOverMenu->SetButtonPosition(0, fbW * 0.35f, btnY);
             gameOverMenu->SetButtonPosition(1, fbW * 0.65f, btnY);
             gameOverMenu->SelectFirstButton();
@@ -990,7 +990,7 @@ void Game::Render() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         std::string charName = characters[selectedModelIndex].name;
-        if (charName == "Thug") {
+        if (charName == "Tung Tung") {
             gameOverMenu->SetBackground("assets/textures/GameOver/sahurfail.png");
         } else if (charName == "Alien") {
             gameOverMenu->SetBackground("assets/textures/GameOver/alien.png");
@@ -1001,14 +1001,14 @@ void Game::Render() {
         gameOverMenu->Render(menuShaderProgram, VAO, fbWidth, fbHeight, true);
         
         // Dibujar texto "Perdiste"
-        gameOverMenu->RenderText("Game Over", fbWidth / 2.0f, fbHeight / 2.0f - 230.0f, 1.5f, glm::vec3(1.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+        gameOverMenu->RenderText("GAME OVER", fbWidth / 2.0f, fbHeight / 2.0f - 230.0f, 1.5f, glm::vec3(1.0f, 0.0f, 0.0f), fbWidth, fbHeight);
 
         // Mostrar score y récord
         int scoreInt = (int)score;
-        gameOverMenu->RenderText("Score: " + std::to_string(scoreInt), fbWidth / 2.0f, fbHeight / 2.0f - 180.0f, 0.9f, glm::vec3(1.0f, 1.0f, 1.0f), fbWidth, fbHeight);
-        gameOverMenu->RenderText("Best: " + std::to_string(highScores[selectedModelIndex]), fbWidth / 2.0f, fbHeight / 2.0f - 150.0f, 0.7f, glm::vec3(1.0f, 0.85f, 0.2f), fbWidth, fbHeight);
+        gameOverMenu->RenderText("Score: " + std::to_string(scoreInt), fbWidth / 2.0f, fbHeight / 2.0f - 120.0f, 0.9f, glm::vec3(1.0f, 1.0f, 1.0f), fbWidth, fbHeight);
+        gameOverMenu->RenderText("Best score: " + std::to_string(highScores[selectedModelIndex]), fbWidth / 2.0f, fbHeight / 2.0f - 30.0f, 0.7f, glm::vec3(1.0f, 0.85f, 0.2f), fbWidth, fbHeight);
         if (isNewHighScore) {
-            gameOverMenu->RenderText("New Record!", fbWidth / 2.0f, fbHeight / 2.0f - 115.0f, 0.8f, glm::vec3(1.0f, 0.85f, 0.2f), fbWidth, fbHeight);
+            gameOverMenu->RenderText("New Record!", fbWidth / 2.0f, fbHeight / 2.0f + 55.0f, 0.8f, glm::vec3(1.0f, 0.85f, 0.2f), fbWidth, fbHeight);
         }
 
         gameOverMenu->RenderSelectionCursor("assets/textures/Menu/Hand.png", 100.0f, 150.0f, 100.0f, fbWidth, fbHeight);
@@ -1483,9 +1483,9 @@ void Game::RenderHUD() {
     glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
 
     int scoreInt = (int)score;
-    menu->RenderText("Coins: " + std::to_string(runCoins), 130.0f, 20.0f, 0.6f, glm::vec3(1.0f, 0.85f, 0.2f), fbWidth, fbHeight);
-    menu->RenderText("Score: " + std::to_string(scoreInt), 130.0f, 75.0f, 0.6f, glm::vec3(1.0f, 0.0f, 0.0f), fbWidth, fbHeight);
-    menu->RenderText("Best score: " + std::to_string(highScores[selectedModelIndex]), 170.0f, 130.0f, 0.5f, glm::vec3(0.0f, 1.0f, 0.0f), fbWidth, fbHeight);
+    menu->RenderText("Coins: " + std::to_string(runCoins), 130.0f, 30.0f, 0.6f, glm::vec3(1.0f, 0.85f, 0.2f), fbWidth, fbHeight);
+    menu->RenderText("Score: " + std::to_string(scoreInt), 130.0f, 100.0f, 0.6f, glm::vec3(1.0f, 0.0f, 0.0f), fbWidth, fbHeight);
+    menu->RenderText("Best score: " + std::to_string(highScores[selectedModelIndex]), 180.0f, 170.0f, 0.6f, glm::vec3(0.0f, 1.0f, 0.0f), fbWidth, fbHeight);
 }
 
 void Game::SaveProgress() {
